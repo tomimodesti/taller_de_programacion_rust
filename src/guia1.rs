@@ -20,47 +20,65 @@ El programa termina cuando se adivina correctamente la palabra pensada, o cuando
 
 //pensemos que recibe la palabra por consola
 //en rust se_usa_snake_case
-fn ahoracado(palabra: String, intentos: u32) -> () {
+use std::io;
 
-    let mut salir = false; //sale por ganar o perder
+pub fn ahoracado(palabra: String, intentos: u32) -> () {
+
     let mut intentos_restantes = intentos;
-    let mut letras_adivinadas: Vec<char> = [];
+    let mut letras_ingresadas: Vec<char> = Vec::new();
 
     //while o loop, cualquiera es valido
-    while !salir {
-        println!("La palabra hasta el momento es: {}",mostrar_palabra(palabra, letras_adivinadas));
-        println!("Intentos restantes{}",intentos_restantes);
-        println!("Adivinaste las siguientes letras: {}",letras_adivinadas);
-        println!("Ingresa una letra: ");
-        let mut letra = recibir_letra();
+    while intentos_restantes > 0 {
+        let actual: String = mostrar_palabra(&palabra, &letras_ingresadas);
+        println!("La palabra hasta el momento es: {}", actual);
+        println!("Intentos restantes: {}", intentos_restantes);
 
-        if palabra.contains(letra) {
-            letras_adivinadas.push(letra);
-        } else {
+        let letra = recibir_letra();
+
+        if letras_ingresadas.contains(&letra) {
+            println!("Ya habías intentado con la letra '{}'", letra);
+            continue;
+        }
+
+        letras_ingresadas.push(letra);
+
+        if !palabra.contains(letra) {
             intentos_restantes -= 1;
+            println!("La letra '{}' no está.", letra);
+        }
+        // Verificamos si ganó comparando sin espacios
+        let despues = mostrar_palabra(&palabra, &letras_ingresadas);
+        if !despues.contains('_') {
+            println!("¡Ganaste! La palabra era: {}", palabra);
+            return;
         }
     }
+    println!("¡Perdiste! La palabra era: {}", palabra);
+    
 }
 
-fn mostrar_palabra(palabra: String, letras_adivinadas: Vec<char>) -> String {
-    let mut resultado = String::new();
-    for letra in palabra.chars() {
-        if letras_adivinadas.contains(&letra) {
-            resultado.push(letra);
-        } else {
-            resultado.push('_');
-        }
-    }
-    resultado
+fn mostrar_palabra(palabra: &str, letras_adivinadas: &Vec<char>) -> String {
+    palabra.chars()
+        .map(|c| if letras_adivinadas.contains(&c) { c } else { '_' })
+        .collect::<Vec<_>>()
+        .iter()
+        .map(|c| format!("{} ", c)) // Estética: "a _ _ o "
+        .collect()
 }
 
 fn recibir_letra() -> char {
+    let mut v: String = String::new();
+    print!("Ingresa una letra: ");
     io::stdin()
     .read_line(&mut v)
     .expect("Error leyendo la linea.");
-    match v.trim() {
+
+    let trimmed = v.trim();
+
+    match trimmed.chars().next() {
         //si es una letra
-        v if v.is_alphabetic() && v.len() == 1 => v.chars().next().unwrap(),
+        Some(trimmed) if trimmed.is_alphabetic()=>trimmed.to_ascii_lowercase(),
+        // si no se que es
         _ => {
             println!("Por favor ingresa una letra valida.");
             recibir_letra()
