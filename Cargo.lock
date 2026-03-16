@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "taller_de_programacion_rust"
+name = "minikv"
 version = "0.1.0"
