@@ -16,15 +16,6 @@ pub enum Comando {
 
 //TODO: implementar ejecutar_comando 
 impl Comando {
-    pub fn imprimir_comando(&self) -> String {
-        match self {
-            Comando::Set { clave, valor } => format!("Comando Set: clave = {:?}, valor = {:?}", clave, valor),
-            Comando::Get { clave } => format!("Comando Get: clave = {:?}", clave),
-            Comando::Delete { clave } => format!("Comando Delete: clave = {:?}", clave),
-            Comando::Length => "Comando Length".to_string(),
-            Comando::Snapshot => "Comando Snapshot".to_string(),
-        }
-    }
     pub fn ejecutar(&self,hash_map : HashMap<String, String>) -> Result<String, String> {
         match self {
             Comando::Set { clave, valor } => ejecutar_set(clave,valor,hash_map),
@@ -44,19 +35,29 @@ fn ejecutar_set(clave:&String, valor:&String, hashmap: HashMap<String, String>) 
     Ok(format!("Set: clave = {:?}, valor = {:?}", clave, valor))
 }
 fn ejecutar_get(clave:&String, hash_map: HashMap<String, String>) -> Result<String,String> {
-    //testeo
-    Ok(format!("Get: clave = {:?}", clave))
+    //get tiene 2 resultados, entontrar la key y devolver el valor o no encontrar la key y devolver un mensaje de error
+    match hash_map.get(clave) {
+        Some(valor) => Ok(format!("{:?}", valor)),
+        None => Err(format!("NOT FOUND")),
+    }
+    //no genera escritura en LOG entonces solo devuelve el resultado y termina
 }
 fn ejecutar_delete(clave:&String, hash_map: HashMap<String, String>) -> 
 Result<String,String> {
-    //testeo
-    Ok(format!("Delete: clave = {:?}", clave))
+    //tiene 2 resultados, entontrar la key y eliminarla (escribir en el LOG) o no encontrar la key y devolver un mensaje de error
+    if hash_map.contains_key(clave) {
+        //escribir en el LOG "set {clave}"
+        Ok(format!("OK"))
+    } else {
+        Err(format!("NOT FOUND"))
+    }
 }
 
 fn ejecutar_length(hash_map: HashMap<String, String>) -> Result<String,String> {
-    //testeo
-    Ok(format!("Length"))
-}
+    //solo necesita el largo del "la base de datos" en este contexto (LOG + DATA) osea el hashmap
+    Ok(format!("{}", hash_map.len()))
+    //tampoco genera escrita en LOG
+}  
 fn ejecutar_snapshot(hash_map: HashMap<String, String>) -> Result<String,String> {
     //testeo
     Ok(format!("Snapshot"))

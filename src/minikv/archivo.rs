@@ -1,11 +1,6 @@
 
 use std::fs::{File, OpenOptions};
 
-
-const DATA_PATH: &str = ".minikv.data";
-const LOG_PATH: &str = ".minikv.log";
-
-
 ///Funcion que crea un archivo, si ya existe lo sobreescribe
 /// # Arguments
 /// * `path` - Ruta del archivo a crear - &str
