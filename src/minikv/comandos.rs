@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
 use std::fs::File;
 use crate::minikv::archivo::{abrir_para_appendear, escribir_archivo};
 
@@ -34,9 +34,18 @@ impl Comando {
 
 //TODO: implementar funciones, quedo mas simple ahora con el hashmap cargado
 // y las verificaciones se hacen mas simplen con este
-fn ejecutar_set(clave:&String, valor:&String, _hashmap: HashMap<String, String>) -> Result<String,String> {
-    //testeo de parseo de comando, 
-    Ok(format!("Set: clave = {:?}, valor = {:?}", clave, valor))
+fn ejecutar_set(clave:&String, valor:&String, _hash_map: HashMap<String, String>) -> Result<String,String> {
+    //que haria set: agregar en el log set clave valor,
+    //despues si eso pisa alguna  existente seria una modificacion
+    let log_line = format!("set {} {}",clave,valor);
+    let log_file: File = match abrir_para_appendear(LOG_PATH) {
+        Ok(file ) => file,
+        Err(_) => return Err(format!("Error al abrir el LOG"))  
+    };
+    match escribir_archivo(log_file,log_line ) {
+        Ok(_) => Ok(format!("OK")),
+        Err(_) => Err(format!("Error al escribir el set en log"))
+    }
 }
 fn ejecutar_get(clave:&String, hash_map: HashMap<String, String>) -> Result<String,String> {
     //get tiene 2 resultados, entontrar la key y devolver el valor o no encontrar la key y devolver un mensaje de error
