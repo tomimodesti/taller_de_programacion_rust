@@ -1,8 +1,5 @@
+use crate::minikv::comandos::Comando;
 
-
-
-//forma comando: minikv "comando" "argumentos"
-//el option me permite devolver un mensaje de error o un mensaje de resultado valido, dependiendo del comando y los argumentos
 pub fn parseo_comando(args: Vec<String>) -> Result<Comando,String> {
     if args.len() < 2 {
         return Err("Error: comando no especificado".to_string());
@@ -14,7 +11,7 @@ pub fn parseo_comando(args: Vec<String>) -> Result<Comando,String> {
     match iter.next() {
         Some(nombre_comando) => {
             let argumentos: Vec<String> = iter.collect();
-            return decidir_comando(nombre_comando, argumentos);
+            return decidir_comando(&nombre_comando, argumentos);
         },
         None => return Err("Error: comando no especificado".to_string()),
     }
@@ -30,24 +27,48 @@ pub fn parseo_comando(args: Vec<String>) -> Result<Comando,String> {
 /// ``````
 /// Ejemplo: minikv set key value -> comando = set, argumentos = [key, value]
 /// Ejemplo: minikv get key -> comando = get, argumentos = [key]
-pub fn decidir_comando(comando:String, argumentos:Vec<String>) -> Result<Comando,String> {
+pub fn decidir_comando(comando:&String, argumentos:Vec<String>) -> Result<Comando,String> {
     let mut valores = argumentos.into_iter();
-    match comando{
+    match comando.as_str(){
         "set" => {
-            if valores.len() < 1 || valores.len() > 2 {
-                return Err("Error: comando set invalido,
-                uso: minikv set <key> <value> o minikv set <key>".to_string());
-            }else if valores.len() == 1 {
-                return Ok(Comando::Delete { clave: valores.next() });
-            }else {
-                return Ok(Comando::Set { clave: valores.next(), valor: valores.next() });
+                if valores.len() == 1 {
+                let clave = match valores.next() {
+                    Some(c) => c,
+                    None => 
+                    return Err("Error: comando set invalido, 
+                    uso: minikv set <key> <value> o minikv set <key>".to_string()),
+                };
+                Ok(Comando::Delete { clave })
+                
+            }else if valores.len() == 2 {
+                let clave = match valores.next() {
+                    Some(c) => c,
+                    None => 
+                    return Err("Error: comando set invalido, 
+                    uso: minikv set <key> <value> o minikv set <key>".to_string()),
+                };
+                let valor = match valores.next() {
+                    Some(v) => v,
+                    None =>
+                    return Err("Error: comando set invalido, 
+                    uso: minikv set <key> <value> o minikv set <key>".to_string()),
+                };
+                Ok(Comando::Set { clave, valor })
+            }
+            else {
+                return Err("Error: comando set invalido, uso: minikv set <key> <value> o minikv set <key>".to_string());
             }
         }
         "get" => {
             if valores.len() != 1 {
                 return Err("Error: comando get invalido, uso: minikv get <key>".to_string());
             }
-                return Ok(Comando::Get { clave: valores.next() });
+                let clave = match valores.next() {
+                    Some(c) => c,
+                    None => 
+                    return Err("Error: comando get invalido, uso: minikv get <key>".to_string()),
+                };
+                Ok(Comando::Get { clave })
         }
         "length" => {
             if valores.len() != 0 {
