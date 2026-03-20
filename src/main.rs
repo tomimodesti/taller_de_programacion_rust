@@ -66,13 +66,16 @@ fn cargar_hashmap(path: &str, mut hashmap: HashMap<String, String>) -> HashMap<S
     //asi la funcion me sirve para leer tanto data como log
     let archivo_abierto = match archivo {
         Ok(file) => file,
-        Err(_) => return hashmap,
+        Err(_) => {
+                println!("DEBUG: no puedo abrir e archivo {}",path);
+                return hashmap},
     };
     let reader = BufReader::new(archivo_abierto);
 
     for line in reader.lines() {
         if let Ok(linea) = line {
             let partes:Vec<&str> = linea.split_whitespace().collect();
+            println!("DEBUG: linea {:?}",partes);
             match partes.as_slice() {
                 ["set", clave, valor] => { //si en el log hay un set, lo agrego al hashmap, si ya hay una clave igual se sobreescribe el valor
                                             //para evitar duplicados
