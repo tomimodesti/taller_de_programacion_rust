@@ -1,4 +1,8 @@
 use std::collections::HashMap;
+use std::fs::File;
+use crate::minikv::archivo::{abrir_para_appendear, escribir_archivo};
+
+const LOG_PATH: &str = ".minikv.log";
 
 /// Enum comandos disponibles:
 /// Set: setea un valor para una clave, si la clave ya existe se sobreescribe el valor
@@ -30,7 +34,7 @@ impl Comando {
 
 //TODO: implementar funciones, quedo mas simple ahora con el hashmap cargado
 // y las verificaciones se hacen mas simplen con este
-fn ejecutar_set(clave:&String, valor:&String, hashmap: HashMap<String, String>) -> Result<String,String> {
+fn ejecutar_set(clave:&String, valor:&String, _hashmap: HashMap<String, String>) -> Result<String,String> {
     //testeo de parseo de comando, 
     Ok(format!("Set: clave = {:?}, valor = {:?}", clave, valor))
 }
@@ -47,7 +51,18 @@ Result<String,String> {
     //tiene 2 resultados, entontrar la key y eliminarla (escribir en el LOG) o no encontrar la key y devolver un mensaje de error
     if hash_map.contains_key(clave) {
         //escribir en el LOG "set {clave}"
-        Ok(format!("OK"))
+        //buscamos el LOG, sino existe lo creamos, si hubo un error al crear sale un error y salimos al main
+        let log_line: String = format!("set {}\n", clave);
+        let log_file: File = match abrir_para_appendear(LOG_PATH) {
+            Ok(file) => file,
+            Err(e) => return Err(format!("Error al abrir el archivo de log {}: {}", LOG_PATH, e)),
+        };
+        match escribir_archivo(log_file, log_line) {
+            Ok(_) => Ok(format!("OK")),
+            Err(e) => return Err(format!("Error al escribir en el archivo de log {}: {}", LOG_PATH, e)),
+        }
+
+        
     } else {
         Err(format!("NOT FOUND"))
     }
@@ -58,7 +73,7 @@ fn ejecutar_length(hash_map: HashMap<String, String>) -> Result<String,String> {
     Ok(format!("{}", hash_map.len()))
     //tampoco genera escrita en LOG
 }  
-fn ejecutar_snapshot(hash_map: HashMap<String, String>) -> Result<String,String> {
+fn ejecutar_snapshot(_hash_map: HashMap<String, String>) -> Result<String,String> {
     //testeo
     Ok(format!("Snapshot"))
 }

@@ -1,5 +1,6 @@
 
-use std::fs::{File, OpenOptions};
+use std::{fs::{File, OpenOptions}, io::Write};
+
 
 ///Funcion que crea un archivo, si ya existe lo sobreescribe
 /// # Arguments
@@ -41,4 +42,11 @@ pub fn abrir_para_appendear(path: &str) -> Result<File,String> {
             }
         }
     }                      
+}
+
+pub fn escribir_archivo(mut file: File, contenido: String) -> Result<(),String> {
+    match file.write(contenido.as_bytes()) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Error al escribir en el archivo: {}", e)),
+    }
 }
