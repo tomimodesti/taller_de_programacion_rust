@@ -3,6 +3,7 @@ use std::fs::File;
 use crate::minikv::archivo::{abrir_para_appendear, escribir_archivo};
 
 const LOG_PATH: &str = ".minikv.log";
+const DATA_PATH: &str = ".minikv.data";
 
 /// Enum comandos disponibles:
 /// Set: setea un valor para una clave, si la clave ya existe se sobreescribe el valor
@@ -18,11 +19,10 @@ pub enum Comando {
     Snapshot,
 }
 
-//TODO: implementar ejecutar_comando 
 impl Comando {
     pub fn ejecutar(&self,hash_map : HashMap<String, String>) -> Result<String, String> {
         match self {
-            Comando::Set { clave, valor } => ejecutar_set(clave,valor,hash_map),
+            Comando::Set { clave, valor } => ejecutar_set(clave,valor),
             Comando::Get { clave } => ejecutar_get(clave,hash_map),
             Comando::Delete { clave } => ejecutar_delete(clave,hash_map),
             Comando::Length => ejecutar_length(hash_map),
@@ -34,7 +34,7 @@ impl Comando {
 
 //TODO: implementar funciones, quedo mas simple ahora con el hashmap cargado
 // y las verificaciones se hacen mas simplen con este
-fn ejecutar_set(clave:&String, valor:&String, _hash_map: HashMap<String, String>) -> Result<String,String> {
+fn ejecutar_set(clave:&String, valor:&String) -> Result<String,String> {
     //que haria set: agregar en el log set clave valor,
     //despues si eso pisa alguna  existente seria una modificacion
     let log_line = format!("set {} {}",clave,valor);
@@ -83,6 +83,6 @@ fn ejecutar_length(hash_map: HashMap<String, String>) -> Result<String,String> {
     //tampoco genera escrita en LOG
 }  
 fn ejecutar_snapshot(_hash_map: HashMap<String, String>) -> Result<String,String> {
-    //testeo
-    Ok(format!("Snapshot"))
+    //que hace snapshot: toma el log si existe
+    Ok(format!(".."))
 }

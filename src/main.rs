@@ -1,10 +1,7 @@
-use std::io::{BufRead, BufReader};
-use std::collections::HashMap;
-
 mod minikv;
 use minikv::parseo::{parseo_comando};
-use minikv::archivo::{buscar_archivo};
 use minikv::comandos::{Comando};
+use minikv::archivo::{crear_hashmap};
 
 const DATA_PATH: &str = ".minikv.data";
 const LOG_PATH: &str = ".minikv.log";
@@ -33,10 +30,7 @@ const LOG_PATH: &str = ".minikv.log";
 
 //main: se recibe el comando y por ahora lo imprimimos, luego se parsea el comando y se ejecuta el comando correspondiente
 pub fn main() -> () {
-    let mut hash_map: HashMap<String, String> = HashMap::new();
-    //si los archivo aun no existen, queda igual el hashmap
-    hash_map = cargar_hashmap(DATA_PATH, hash_map); //cargamos data
-    hash_map = cargar_hashmap(LOG_PATH, hash_map); //cargamos log
+    let hash_map = crear_hashmap(DATA_PATH, LOG_PATH); 
     //recibimos el comando y lo parseamos
     let args: Vec<String> = std::env::args().collect();
     //parseo
@@ -54,43 +48,3 @@ pub fn main() -> () {
         Err(mensaje_error) => println!("{}", mensaje_error),
         }
 }
-
-
-
-///Funcion que dado un path y un hashmap, 
-/// carga el hashmap con los datos del archivo, 
-/// si el archivo no existe devuelve el hashmap dado sin modificar
-fn cargar_hashmap(path: &str, mut hashmap: HashMap<String, String>) -> HashMap<String, String> {
-
-    let archivo = buscar_archivo(path);
-    //asi la funcion me sirve para leer tanto data como log
-    let archivo_abierto = match archivo {
-        Ok(file) => file,
-        Err(_) => {
-                println!("DEBUG: no puedo abrir e archivo {}",path);
-                return hashmap},
-    };
-    let reader = BufReader::new(archivo_abierto);
-
-    for line in reader.lines() {
-        if let Ok(linea) = line {
-            let partes:Vec<&str> = linea.split_whitespace().collect();
-            println!("DEBUG: linea {:?}",partes);
-            match partes.as_slice() {
-                ["set", clave, valor] => { //si en el log hay un set, lo agrego al hashmap, si ya hay una clave igual se sobreescribe el valor
-                                            //para evitar duplicados
-                    hashmap.insert(clave.to_string(), valor.to_string());
-                },
-                ["set", clave] => { //si en el log hay un unset
-                    hashmap.remove(*clave);
-                },
-                [k,v] => {
-                    hashmap.insert(k.to_string(), v.to_string());
-                }
-                _ => continue, //si el data o log esta "corrupto" no es importante por el momento
-            }
-        }
-    }
-    hashmap
-}
-
