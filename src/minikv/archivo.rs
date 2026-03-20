@@ -47,9 +47,9 @@ pub fn abrir_para_appendear(path: &str) -> Result<File,String> {
     }                      
 }
 
-pub fn escribir_archivo(mut file: File, contenido: String) -> Result<(),String> {
+pub fn escribir_archivo(mut file: File, contenido: String) -> Result<String,String> {
     match file.write(contenido.as_bytes()) {
-        Ok(_) => Ok(()),
+        Ok(_) => Ok(format!("OK")),
         Err(e) => Err(format!("Error al escribir en el archivo: {}", e)),
     }
 }

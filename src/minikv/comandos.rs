@@ -1,6 +1,7 @@
+use std::io::Write;
 use std::{collections::HashMap};
 use std::fs::File;
-use crate::minikv::archivo::{abrir_para_appendear, escribir_archivo};
+use crate::minikv::archivo::{abrir_para_appendear, crear_archivo, escribir_archivo};
 
 const LOG_PATH: &str = ".minikv.log";
 const DATA_PATH: &str = ".minikv.data";
@@ -82,7 +83,20 @@ fn ejecutar_length(hash_map: HashMap<String, String>) -> Result<String,String> {
     Ok(format!("{}", hash_map.len()))
     //tampoco genera escrita en LOG
 }  
-fn ejecutar_snapshot(_hash_map: HashMap<String, String>) -> Result<String,String> {
-    //que hace snapshot: toma el log si existe
-    Ok(format!(".."))
+fn ejecutar_snapshot(hash_map: HashMap<String, String>) -> Result<String,String> {
+    //que hace snapshot: toma el log si existe 
+    //trunco DATA y LOG, 
+    crear_archivo(LOG_PATH)?;
+    let data = crear_archivo(DATA_PATH)?;
+    escrbir_data(data, hash_map)?;
+    Ok(format!("Snapshot terminado"))
+}
+
+fn escrbir_data (mut data_file: File, hash_map: HashMap<String,String>) -> Result<(),String> {
+    for (clave,valor) in &hash_map{
+        let linea = format!("{} {}\n",clave,valor);
+        data_file.write_all(linea.as_bytes())
+        .map_err(|_| format!("Error al escribir el DATA"))?;
+    }
+    Ok(())
 }
