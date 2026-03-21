@@ -56,7 +56,7 @@ fn ejecutar_get(clave: &String, hash_map: HashMap<String, String>) -> Result<Str
 }
 fn ejecutar_delete(clave: &String, hash_map: HashMap<String, String>) -> Result<String, String> {
     if hash_map.contains_key(clave) {
-        let log_line: String = format!("set {}\n", clave);
+        let log_line: String = format!("set {}", clave);
         let log_file: File = match abrir_para_appendear(LOG_PATH) {
             Ok(file) => file,
             Err(e) => {

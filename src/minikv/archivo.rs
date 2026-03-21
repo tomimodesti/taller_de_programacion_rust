@@ -56,8 +56,11 @@ pub fn abrir_para_appendear(path: &str) -> Result<File, String> {
 /// * `file` - archivo a escribir
 /// * `contenido` String - contenido a escribir en el archivo
 pub fn escribir_archivo(mut file: File, contenido: String) -> Result<String, String> {
-    match file.write_all(contenido.as_bytes()) {
-        Ok(()) => Ok("OK".to_string()),
+    match writeln!(file,"{}",contenido.trim()) {
+        Ok(()) => {
+            drop(file);
+            Ok("OK".to_string())
+        }
         Err(e) => Err(format!("Error al escribir en el archivo: {}", e)),
     }
 }
