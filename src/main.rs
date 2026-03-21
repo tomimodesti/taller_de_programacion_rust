@@ -144,4 +144,40 @@ mod tests {
         assert_eq!(stdout, "3");
         limpiar_archivos();
     }
+
+    #[test]
+    fn test_consistencia_snapshot() {
+        limpiar_archivos();
+        let comando_set = Command::new("target/debug/minikv")
+            .args(["set", "clave", "valor"])
+            .status()
+            .expect("Fallo al ejecutar");
+        assert!(
+            comando_set.success(),
+            "el comando set no termino correctamente"
+        );
+        //get pre snapshot
+        let comando_get = Command::new("target/debug/minikv")
+            .args(["get", "clave"])
+            .output()
+            .expect("Error al ejecutar get");
+        let salida_get = String::from_utf8_lossy(&comando_get.stdout);
+        let salida_get = salida_get.trim();
+        let comando_snapshot = Command::new("target/debug/minikv")
+            .args(["snapshot"])
+            .status()
+            .expect("Error al ejecutar snapshot");
+        assert!(
+            comando_snapshot.success(),
+            "El comando snapshot no se realizo correctamente"
+        );
+        //get post snapshot
+        let comando_get_2 = Command::new("target/debug/minikv")
+            .args(["get", "clave"])
+            .output()
+            .expect("Error al ejecutar get");
+        let salida_get_2 = String::from_utf8_lossy(&comando_get_2.stdout);
+        let salida_get_2 = salida_get_2.trim();
+        assert_eq!(salida_get, salida_get_2)
+    }
 }
