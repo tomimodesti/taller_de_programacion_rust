@@ -1,4 +1,4 @@
-//! Modulo archivo: maneja lo relacionado a busqueda en path, 
+//! Modulo archivo: maneja lo relacionado a busqueda en path,
 //! apertura, lectura y escritura de archivos
 
 use std::collections::HashMap;
@@ -11,9 +11,8 @@ use std::{
 ///Funcion que crea un archivo, si ya existe lo sobreescribe borrando su contenido
 /// # Arguments
 /// * `path` - Ruta del archivo a crear - &str
-/// # Errores 
+/// # Errores
 /// * devuelve un error sino pudo abrir el archivo (no lo encontro o path incorrecta)
-
 pub fn crear_archivo(path: &str) -> Result<File, String> {
     match std::fs::File::create(path) {
         Ok(file) => Ok(file),
@@ -39,8 +38,9 @@ pub fn buscar_archivo(path: &str) -> Result<File, String> {
 ///Funcion que abre un archivo para appendear, si no existe lo crea
 /// # Arguments
 /// * `path` - Ruta del archivo a abrir - &str
+///
 /// devuelve un File abierto para appendear o un mensaje de error si no se pudo abrir ni crear el archivo
-///devuelve el File o un mensaje de error
+///     devuelve el File o un mensaje de error
 pub fn abrir_para_appendear(path: &str) -> Result<File, String> {
     match OpenOptions::new().append(true).create(true).open(path) {
         Ok(file) => Ok(file),
@@ -56,7 +56,7 @@ pub fn abrir_para_appendear(path: &str) -> Result<File, String> {
 /// * `file` - archivo a escribir
 /// * `contenido` String - contenido a escribir en el archivo
 pub fn escribir_archivo(mut file: File, contenido: String) -> Result<String, String> {
-    match writeln!(file,"{}",contenido.trim()) {
+    match writeln!(file, "{}", contenido.trim()) {
         Ok(()) => {
             drop(file);
             Ok("OK".to_string())
@@ -114,7 +114,7 @@ fn cargar_hashmap(path: &str, mut hashmap: HashMap<String, String>) -> HashMap<S
 /// * `data_path` &str - path al archivo data
 /// * `log_path` &str - path al archivo log
 /// # Errores
-/// * al igual que cargar_hashMap, puede devolver errores de lectura de archivo 
+/// * al igual que cargar_hashMap, puede devolver errores de lectura de archivo
 pub fn crear_hashmap(data_path: &str, log_path: &str) -> HashMap<String, String> {
     let mut hash_map: HashMap<String, String> = HashMap::new();
     //si los archivo aun no existen, queda igual el hashmap

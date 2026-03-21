@@ -36,7 +36,6 @@ impl Comando {
     }
 }
 
-
 fn ejecutar_set(clave: &String, valor: &String) -> Result<String, String> {
     let log_line = format!("set {} {}", clave, valor);
     let log_file: File = match abrir_para_appendear(LOG_PATH) {
