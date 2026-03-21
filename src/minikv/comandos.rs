@@ -20,6 +20,8 @@ pub enum Comando {
     Snapshot,
 }
 
+///metodo compartido por todos los comandos
+///  para conseguir cierto polimorfismo sin objetos
 impl Comando {
     pub fn ejecutar(&self, hash_map: HashMap<String, String>) -> Result<String, String> {
         match self {
@@ -32,11 +34,8 @@ impl Comando {
     }
 }
 
-//TODO: implementar funciones, quedo mas simple ahora con el hashmap cargado
-// y las verificaciones se hacen mas simplen con este
+
 fn ejecutar_set(clave: &String, valor: &String) -> Result<String, String> {
-    //que haria set: agregar en el log set clave valor,
-    //despues si eso pisa alguna  existente seria una modificacion
     let log_line = format!("set {} {}", clave, valor);
     let log_file: File = match abrir_para_appendear(LOG_PATH) {
         Ok(file) => file,
@@ -48,18 +47,13 @@ fn ejecutar_set(clave: &String, valor: &String) -> Result<String, String> {
     }
 }
 fn ejecutar_get(clave: &String, hash_map: HashMap<String, String>) -> Result<String, String> {
-    //get tiene 2 resultados, entontrar la key y devolver el valor o no encontrar la key y devolver un mensaje de error
     match hash_map.get(clave) {
         Some(valor) => Ok(format!("{:?}", valor)),
         None => Err("NOT FOUND".to_string()),
     }
-    //no genera escritura en LOG entonces solo devuelve el resultado y termina
 }
 fn ejecutar_delete(clave: &String, hash_map: HashMap<String, String>) -> Result<String, String> {
-    //tiene 2 resultados, entontrar la key y eliminarla (escribir en el LOG) o no encontrar la key y devolver un mensaje de error
     if hash_map.contains_key(clave) {
-        //escribir en el LOG "set {clave}"
-        //buscamos el LOG, sino existe lo creamos, si hubo un error al crear sale un error y salimos al main
         let log_line: String = format!("set {}\n", clave);
         let log_file: File = match abrir_para_appendear(LOG_PATH) {
             Ok(file) => file,
@@ -83,13 +77,9 @@ fn ejecutar_delete(clave: &String, hash_map: HashMap<String, String>) -> Result<
 }
 
 fn ejecutar_length(hash_map: HashMap<String, String>) -> Result<String, String> {
-    //solo necesita el largo del "la base de datos" en este contexto (LOG + DATA) osea el hashmap
     Ok(format!("{}", hash_map.len()))
-    //tampoco genera escrita en LOG
 }
 fn ejecutar_snapshot(hash_map: HashMap<String, String>) -> Result<String, String> {
-    //que hace snapshot: toma el log si existe
-    //trunco DATA y LOG,
     crear_archivo(LOG_PATH)?;
     let data = crear_archivo(DATA_PATH)?;
     escrbir_data(data, hash_map)?;
