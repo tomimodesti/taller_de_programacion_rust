@@ -1,10 +1,16 @@
+//! Modulo para parseo de comandos e inputs de usuario
 use crate::minikv::comandos::Comando;
 
+/// Funcion que dado el input del usuario,
+///  lo parsea y decide que comando se ejecutara
+/// # Argumentos
+/// ```text
+/// `args` `Vec<String>` - argumentos dados por el usuario a nuestra motor de almacenamiento
+/// ```
 pub fn parseo_comando(args: Vec<String>) -> Result<Comando, String> {
     if args.len() < 2 {
         return Err("Error: comando no especificado".to_string());
     }
-    // SET = set = Set , no distinguimos solo en el comando
     let mut iter = args.into_iter();
     iter.next(); //salteo el primer elemento que es el nombre del programa
 
@@ -21,12 +27,12 @@ pub fn parseo_comando(args: Vec<String>) -> Result<Comando, String> {
 /// devuelve el comando correspondiente o
 /// un mensaje de error si el comando no es valido
 /// # Arguments
-/// ```
+/// ```text
 /// * `comando` - Comando a ejecutar - String
 /// * `argumentos` - Argumentos del comando - Vec<String>
-/// ``````
+/// ```
 /// Ejemplo: minikv set key value -> comando = set, argumentos = [key, value]
-/// Ejemplo: minikv get key -> comando = get, argumentos = [key]
+/// Ejemplo: minikv get key -> comando = get, argumentos = [ "key" ]
 pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando, String> {
     let mut valores = argumentos.into_iter();
     match comando {

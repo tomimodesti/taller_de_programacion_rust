@@ -1,3 +1,5 @@
+//! Modulo dedicado a definicion y manejo de los distintos tipos de comandos
+//! permitidos para  manejar minikv, como SET, GET, SNAPSHOT
 use crate::minikv::archivo::{abrir_para_appendear, crear_archivo, escribir_archivo};
 use std::collections::HashMap;
 use std::fs::File;
