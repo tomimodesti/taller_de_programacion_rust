@@ -1,9 +1,9 @@
-
-use std::{fs::{File, OpenOptions}, io::Write};
-use std::io::{BufRead, BufReader};
 use std::collections::HashMap;
-
-
+use std::io::{BufRead, BufReader};
+use std::{
+    fs::{File, OpenOptions},
+    io::Write,
+};
 
 ///Funcion que crea un archivo, si ya existe lo sobreescribe
 /// # Arguments
@@ -15,9 +15,8 @@ pub fn crear_archivo(path: &str) -> Result<File, String> {
     }
 }
 
-
 ///Funcion que busca un archivo por un path dado
-/// devuelve un Path al archivo si existe sino devuelve un error (no lo maneja)
+///     devuelve un Path al archivo si existe sino devuelve un error (no lo maneja)
 pub fn buscar_archivo(path: &str) -> Result<File, String> {
     let f = File::open(path); //devuelve un error o un file
     match f {
@@ -30,68 +29,68 @@ pub fn buscar_archivo(path: &str) -> Result<File, String> {
 ///Funcion que abre un archivo para appendear, si no existe lo crea
 /// # Arguments
 /// * `path` - Ruta del archivo a abrir - &str
+///
 /// devuelve un File abierto para appendear o un mensaje de error si no se pudo abrir ni crear el archivo
-/// devuelve el File o un mensaje de error
-pub fn abrir_para_appendear(path: &str) -> Result<File,String> {
-    match OpenOptions::new()
-                        .append(true)
-                        .create(true)
-                        .open(path) {
+///devuelve el File o un mensaje de error
+pub fn abrir_para_appendear(path: &str) -> Result<File, String> {
+    match OpenOptions::new().append(true).create(true).open(path) {
         Ok(file) => Ok(file),
-        Err(_) => {
-            match crear_archivo(path) {
-                Ok(file) => Ok(file),
-                Err(e) => Err(format!("Error al crear el archivo {}: {}", path, e)),
-            }
-        }
-    }                      
+        Err(_) => match crear_archivo(path) {
+            Ok(file) => Ok(file),
+            Err(e) => Err(format!("Error al crear el archivo {}: {}", path, e)),
+        },
+    }
 }
 
-pub fn escribir_archivo(mut file: File, contenido: String) -> Result<String,String> {
-    match file.write(contenido.as_bytes()) {
-        Ok(_) => Ok(format!("OK")),
+pub fn escribir_archivo(mut file: File, contenido: String) -> Result<String, String> {
+    match file.write_all(contenido.as_bytes()) {
+        Ok(()) => Ok("OK".to_string()),
         Err(e) => Err(format!("Error al escribir en el archivo: {}", e)),
     }
 }
 
-///Funcion que dado un path y un hashmap, 
-/// carga el hashmap con los datos del archivo, 
+///Funcion que dado un path y un hashmap,
+/// carga el hashmap con los datos del archivo,
 /// si el archivo no existe devuelve el hashmap dado sin modificar
 fn cargar_hashmap(path: &str, mut hashmap: HashMap<String, String>) -> HashMap<String, String> {
-
     let archivo = buscar_archivo(path);
     //asi la funcion me sirve para leer tanto data como log
     let archivo_abierto = match archivo {
         Ok(file) => file,
         Err(_) => {
-                println!("DEBUG: no puedo abrir e archivo {}",path);
-                return hashmap},
+            println!("DEBUG: no puedo abrir e archivo {}", path);
+            return hashmap;
+        }
     };
     let reader = BufReader::new(archivo_abierto);
 
     for line in reader.lines() {
-        if let Ok(linea) = line {
-            let partes:Vec<&str> = linea.split_whitespace().collect();
-            println!("DEBUG: linea {:?}",partes);
-            match partes.as_slice() {
-                ["set", clave, valor] => { //si en el log hay un set, lo agrego al hashmap, si ya hay una clave igual se sobreescribe el valor
-                                            //para evitar duplicados
-                    hashmap.insert(clave.to_string(), valor.to_string());
-                },
-                ["set", clave] => { //si en el log hay un unset
-                    hashmap.remove(*clave);
-                },
-                [k,v] => {
-                    hashmap.insert(k.to_string(), v.to_string());
-                }
-                _ => continue, //si el data o log esta "corrupto" no es importante por el momento
+        let linea = match line {
+            Ok(l) => l,
+            Err(_) => continue,
+        };
+        let partes: Vec<&str> = linea.split_whitespace().collect();
+        println!("DEBUG: linea {:?}", partes);
+        match partes.as_slice() {
+            ["set", clave, valor] => {
+                //si en el log hay un set, lo agrego al hashmap, si ya hay una clave igual se sobreescribe el valor
+                //para evitar duplicados
+                hashmap.insert(clave.to_string(), valor.to_string());
             }
+            ["set", clave] => {
+                //si en el log hay un unset
+                hashmap.remove(*clave);
+            }
+            [k, v] => {
+                hashmap.insert(k.to_string(), v.to_string());
+            }
+            _ => continue, //si el data o log esta "corrupto" no es importante por el momento
         }
     }
     hashmap
 }
 
-pub fn crear_hashmap(data_path: &str, log_path: &str) -> HashMap<String,String> {
+pub fn crear_hashmap(data_path: &str, log_path: &str) -> HashMap<String, String> {
     let mut hash_map: HashMap<String, String> = HashMap::new();
     //si los archivo aun no existen, queda igual el hashmap
     hash_map = cargar_hashmap(data_path, hash_map); //cargamos data
