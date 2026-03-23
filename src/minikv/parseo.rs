@@ -41,8 +41,7 @@ pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando
                 let clave = match valores.next() {
                     Some(c) => c,
                     None => {
-                        return Err("Error: comando set invalido, 
-                    uso: minikv set <key> <value> o minikv set <key>"
+                        return Err("MISSING ARGUMENT"
                             .to_string());
                     }
                 };
@@ -51,51 +50,49 @@ pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando
                 let clave = match valores.next() {
                     Some(c) => c,
                     None => {
-                        return Err("Error: comando set invalido, 
-                    uso: minikv set <key> <value> o minikv set <key>"
+                        return Err("MISSING ARGUMENT"
                             .to_string());
                     }
                 };
                 let valor = match valores.next() {
                     Some(v) => v,
                     None => {
-                        return Err("Error: comando set invalido, 
-                    uso: minikv set <key> <value> o minikv set <key>"
+                        return Err("MISSING ARGUMENT"
                             .to_string());
                     }
                 };
                 Ok(Comando::Set { clave, valor })
             } else {
                 Err(
-                    "Error: comando set invalido, uso: minikv set <key> <value> o minikv set <key>"
+                    "EXTRA ARGUMENT"
                         .to_string(),
                 )
             }
         }
         "get" => {
             if valores.len() != 1 {
-                return Err("Error: comando get invalido, uso: minikv get <key>".to_string());
+                return Err("MISSING ARGUMENT".to_string());
             }
             let clave = match valores.next() {
                 Some(c) => c,
                 None => {
-                    return Err("Error: comando get invalido, uso: minikv get <key>".to_string());
+                    return Err("MISSING ARGUMENT".to_string());
                 }
             };
             Ok(Comando::Get { clave })
         }
         "length" => {
             if valores.len() != 0 {
-                return Err("Error: comando length invalido, uso: minikv length".to_string());
+                return Err("EXTRA ARGUMENT".to_string());
             }
             Ok(Comando::Length)
         }
         "snapshot" => {
             if valores.len() != 0 {
-                return Err("Error: comando snapshot invalido, uso: minikv snapshot".to_string());
+                return Err("EXTRA ARGUMENT".to_string());
             }
             Ok(Comando::Snapshot)
         }
-        _ => Err("Error: comando no reconocido".to_string()),
+        _ => Err("UNKNOWN COMMAND".to_string()),
     }
 }

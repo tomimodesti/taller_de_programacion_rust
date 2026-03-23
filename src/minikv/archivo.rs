@@ -31,7 +31,7 @@ pub fn buscar_archivo(path: &str) -> Result<File, String> {
     match f {
         //si lo encuentra devuelve el file, sino devuelve un error (no me interesa devolver un mensaje)
         Ok(file) => Ok(file),
-        Err(e) => Err(format!("Error al buscar el archivo {}: {}", path, e)),
+        Err(_) => Err(format!("ERROR: {}", path)),
     }
 }
 
@@ -46,7 +46,7 @@ pub fn abrir_para_appendear(path: &str) -> Result<File, String> {
         Ok(file) => Ok(file),
         Err(_) => match crear_archivo(path) {
             Ok(file) => Ok(file),
-            Err(e) => Err(format!("Error al crear el archivo {}: {}", path, e)),
+            Err(e) => Err(format!("{} {}", path, e)),
         },
     }
 }
@@ -61,7 +61,7 @@ pub fn escribir_archivo(mut file: File, contenido: String) -> Result<String, Str
             drop(file);
             Ok("OK".to_string())
         }
-        Err(e) => Err(format!("Error al escribir en el archivo: {}", e)),
+        Err(e) => Err(format!("{}", e)),
     }
 }
 
@@ -103,7 +103,7 @@ fn cargar_hashmap(path: &str, mut hashmap: HashMap<String, String>) -> HashMap<S
             [k, v] => {
                 hashmap.insert(k.to_string(), v.to_string());
             }
-            _ => continue, //si el data o log esta "corrupto" no es importante por el momento
+            _ => continue, 
         }
     }
     hashmap

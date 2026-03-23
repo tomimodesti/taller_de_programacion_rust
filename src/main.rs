@@ -14,6 +14,9 @@ const LOG_PATH: &str = ".minikv.log";
 /// ```
 /// Modos de uso: minikv set <key> <value> --> asigna key a value y lo escribe en log
 ///               minikv get <key> --> devuelve el value asignado a esa key si existe
+///               minikv set <key> --> desasigna key al valor que tenga si esta presente
+///               minikv length --> devuelve la cantidad de pares clave valor
+///               minikv snapshot --> unfica data y log guardando todos los pares clave valor validos en data.
 /// ```
 ///  # Errores
 /// Los errores son manejados, pero pueden surgir por mal inputs (comandos invalidos)
@@ -27,10 +30,10 @@ pub fn main() {
             let resultado = comando_valido.ejecutar(hash_map);
             match resultado {
                 Ok(mensaje_resultado) => println!("{}", mensaje_resultado),
-                Err(mensaje_error) => println!("{}", mensaje_error),
+                Err(mensaje_error) => println!("ERROR: {}", mensaje_error),
             }
         }
-        Err(mensaje_error) => println!("{}", mensaje_error),
+        Err(mensaje_error) => println!("ERROR: {}", mensaje_error),
     }
 }
 

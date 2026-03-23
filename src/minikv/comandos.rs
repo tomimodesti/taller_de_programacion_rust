@@ -36,7 +36,7 @@ impl Comando {
     }
 }
 
-///Funcion SET, toma la <clave> <valor> ingresados y los agrega a la base de datos
+///Funcion SET, toma la `<clave>` `<valor>` ingresados y los agrega a la base de datos
 ///     si habia una clave igual, pisa el valor anterior.
 /// #Argumentos:
 /// * `clave` &String - clave que identifica al valor
@@ -53,7 +53,7 @@ impl Comando {
 /// * OK --> si pudo ingresar el conjunto clave valor
 /// * mensaje de error sino pudo terminar la operacion
 fn ejecutar_set(clave: &String, valor: &String) -> Result<String, String> {
-    let log_line = format!("set {} {}", clave, valor);
+    let log_line = format!("set \"{}\" \"{}\"", clave, valor);
     let log_file: File = match abrir_para_appendear(LOG_PATH) {
         Ok(file) => file,
         Err(_) => return Err("Error al abrir el LOG".to_string()),
@@ -82,8 +82,9 @@ fn ejecutar_set(clave: &String, valor: &String) -> Result<String, String> {
 /// * el valor que fue asignada a esa clave
 /// * NOT FOUND --> si no pudo encontrar el valor de esa clave
 fn ejecutar_get(clave: &String, hash_map: HashMap<String, String>) -> Result<String, String> {
-    match hash_map.get(clave) {
-        Some(valor) => Ok(format!("{:?}", valor)),
+    let clave = format!("\"{}\"", clave);
+    match hash_map.get(&clave) {
+        Some(valor) => Ok(valor.to_string()),
         None => Err("NOT FOUND".to_string()),
     }
 }
@@ -100,14 +101,15 @@ fn ejecutar_get(clave: &String, hash_map: HashMap<String, String>) -> Result<Str
 ///   # Errores
 /// * errores para abrir los archivos correspondientes
 fn ejecutar_delete(clave: &String, hash_map: HashMap<String, String>) -> Result<String, String> {
-    if hash_map.contains_key(clave) {
+    let clave = format!("\"{}\"", clave);
+    if hash_map.contains_key(&clave) {
         let log_line: String = format!("set {}", clave);
         let log_file: File = match abrir_para_appendear(LOG_PATH) {
             Ok(file) => file,
-            Err(e) => {
+            Err(_) => {
                 return Err(format!(
-                    "Error al abrir el archivo de log {}: {}",
-                    LOG_PATH, e
+                    "INVALID LOG FILE",
+                   
                 ));
             }
         };
@@ -145,13 +147,13 @@ fn ejecutar_snapshot(hash_map: HashMap<String, String>) -> Result<String, String
 }
 
 ///Funcion usada para escribir en el data_file la informacion de la minikv,
-///     quedandose solo con los pares <clave> <valor> que no fueron borrados
+///     quedandose solo con los pares `<clave>` `<valor>` que no fueron borrados
 fn escrbir_data(mut data_file: File, hash_map: HashMap<String, String>) -> Result<(), String> {
     for (clave, valor) in &hash_map {
         let linea = format!("{} {}\n", clave, valor);
         data_file
             .write_all(linea.as_bytes())
-            .map_err(|_| "Error al escribir el DATA".to_string())?;
+            .map_err(|_| "INVALID DATA FILE".to_string())?;
     }
     Ok(())
 }
