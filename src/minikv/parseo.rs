@@ -1,4 +1,5 @@
 //! Modulo para parseo de comandos e inputs de usuario
+
 use crate::minikv::comandos::Comando;
 
 /// Funcion que dado el input del usuario,
@@ -59,13 +60,17 @@ pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando
                     }
                 };
                 Ok(Comando::Set { clave, valor })
+            } else if valores.len() == 0 {
+                Err("MISSING ARGUMENT".to_string())
             } else {
                 Err("EXTRA ARGUMENT".to_string())
             }
         }
         "get" => {
-            if valores.len() != 1 {
+            if valores.len() == 0 {
                 return Err("MISSING ARGUMENT".to_string());
+            } else if valores.len() > 1 {
+                return Err("EXTRA ARGUMENT".to_string());
             }
             let clave = match valores.next() {
                 Some(c) => c,

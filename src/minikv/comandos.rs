@@ -84,7 +84,10 @@ fn ejecutar_set(clave: &String, valor: &String) -> Result<String, String> {
 fn ejecutar_get(clave: &String, hash_map: HashMap<String, String>) -> Result<String, String> {
     let clave = format!("\"{}\"", clave);
     match hash_map.get(&clave) {
-        Some(valor) => Ok(valor.to_string()),
+        Some(valor) => {
+            let valor_limpio = valor.trim_matches('"');
+            Ok(valor_limpio.to_string())
+        }
         None => Err("NOT FOUND".to_string()),
     }
 }
@@ -140,7 +143,7 @@ fn ejecutar_snapshot(hash_map: HashMap<String, String>) -> Result<String, String
     crear_archivo(LOG_PATH)?;
     let data = crear_archivo(DATA_PATH)?;
     escrbir_data(data, hash_map)?;
-    Ok("Snapshot terminado".to_string())
+    Ok("OK".to_string())
 }
 
 ///Funcion usada para escribir en el data_file la informacion de la minikv,

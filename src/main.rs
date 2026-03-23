@@ -22,7 +22,14 @@ const LOG_PATH: &str = ".minikv.log";
 /// Los errores son manejados, pero pueden surgir por mal inputs (comandos invalidos)
 /// O errores de manejo de archivo, como al abrir o escribir
 pub fn main() {
-    let hash_map = crear_hashmap(DATA_PATH, LOG_PATH);
+    let hash_map = match crear_hashmap(DATA_PATH, LOG_PATH) {
+        Ok(h) => h,
+        Err(msg) => {
+            println!("ERROR: {}", msg);
+            return;
+        }
+    };
+
     let args: Vec<String> = std::env::args().collect();
     let comando: Result<Comando, String> = parseo_comando(args);
     match comando {
@@ -69,13 +76,15 @@ mod tests {
 
     #[test]
     fn test_ejecuccion_set() {
-        let child = Command::new("target/debug/minikv")
+        let child = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .arg("set")
             .arg("clave")
             .arg("valor")
             .stdout(Stdio::piped())
             .spawn()
-            .expect("Fallo al ejecutar");
+            .expect("Fallo al ejecutar binario");
         let output = child.wait_with_output().expect("Fallo al esperar");
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("OK"));
@@ -83,14 +92,18 @@ mod tests {
 
     #[test]
     fn test_ejecuccion_get() {
-        let _child = Command::new("target/debug/minikv")
+        let _child = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .arg("set")
             .arg("clave")
             .arg("valor")
             .output()
             .expect("Fallo al ejecutar");
         thread::sleep(Duration::from_millis(200));
-        let get = Command::new("target/debug/minikv")
+        let get = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .arg("get")
             .arg("clave")
             .stdout(Stdio::piped())
@@ -98,17 +111,22 @@ mod tests {
             .expect("Error al ejecutar");
         let get_output = get.wait_with_output().expect("Fallo al esperar");
         let get_stdout = String::from_utf8_lossy(&get_output.stdout);
-        assert!(get_stdout.contains("valor"));
+        let stdout_limpio = get_stdout.trim();
+        assert!(stdout_limpio.contains("valor"));
     }
 
     #[test]
     fn test_ejecuccion_lenght() {
-        let comando1 = Command::new("target/debug/minikv")
+        let comando1 = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .args(["set", "clave", "valor"])
             .status()
             .expect("Fallo al ejecutar");
         assert!(comando1.success(), "el primer set no termino correctamente");
-        let comando2 = Command::new("target/debug/minikv")
+        let comando2 = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .args(["set", "a", "b"])
             .status()
             .expect("Fallo al ejecutar");
@@ -116,7 +134,9 @@ mod tests {
             comando2.success(),
             "el segundo comando no termino correctamente"
         );
-        let comando3 = Command::new("target/debug/minikv")
+        let comando3 = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .args(["set", "c", "d"])
             .status()
             .expect("Fallo al ejecutar");
@@ -124,7 +144,9 @@ mod tests {
             comando3.success(),
             "el tercer comando no termino correctamente"
         );
-        let child = Command::new("target/debug/minikv")
+        let child = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .arg("length")
             .output()
             .expect("Fallo al iniciar");
@@ -135,7 +157,9 @@ mod tests {
 
     #[test]
     fn test_consistencia_snapshot() {
-        let comando_set = Command::new("target/debug/minikv")
+        let comando_set = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .args(["set", "clave", "valor"])
             .status()
             .expect("Fallo al ejecutar");
@@ -144,13 +168,17 @@ mod tests {
             "el comando set no termino correctamente"
         );
         //get pre snapshot
-        let comando_get = Command::new("target/debug/minikv")
+        let comando_get = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .args(["get", "clave"])
             .output()
             .expect("Error al ejecutar get");
         let salida_get = String::from_utf8_lossy(&comando_get.stdout);
         let salida_get = salida_get.trim();
-        let comando_snapshot = Command::new("target/debug/minikv")
+        let comando_snapshot = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .args(["snapshot"])
             .status()
             .expect("Error al ejecutar snapshot");
@@ -159,7 +187,9 @@ mod tests {
             "El comando snapshot no se realizo correctamente"
         );
         //get post snapshot
-        let comando_get_2 = Command::new("target/debug/minikv")
+        let comando_get_2 = Command::new("cargo")
+            .arg("run")
+            .arg("--")
             .args(["get", "clave"])
             .output()
             .expect("Error al ejecutar get");

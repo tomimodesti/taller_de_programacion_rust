@@ -8,6 +8,8 @@ use std::{
     io::Write,
 };
 
+use crate::{DATA_PATH, LOG_PATH};
+
 ///Funcion que crea un archivo, si ya existe lo sobreescribe borrando su contenido
 /// # Arguments
 /// * `path` - Ruta del archivo a crear - &str
@@ -73,13 +75,16 @@ pub fn escribir_archivo(mut file: File, contenido: String) -> Result<String, Str
 /// * `hashmap` - recibe un hashmap ya inicializado
 /// # Errores
 /// * errores de lectura del archivo al abrir o leer
-fn cargar_hashmap(path: &str, mut hashmap: HashMap<String, String>) -> HashMap<String, String> {
+fn cargar_hashmap(
+    path: &str,
+    mut hashmap: HashMap<String, String>,
+) -> Result<HashMap<String, String>, String> {
     let archivo = buscar_archivo(path);
     //asi la funcion me sirve para leer tanto data como log
     let archivo_abierto = match archivo {
         Ok(file) => file,
         Err(_) => {
-            return hashmap;
+            return Ok(hashmap);
         }
     };
     let reader = BufReader::new(archivo_abierto);
@@ -103,10 +108,19 @@ fn cargar_hashmap(path: &str, mut hashmap: HashMap<String, String>) -> HashMap<S
             [k, v] => {
                 hashmap.insert(k.to_string(), v.to_string());
             }
-            _ => continue,
+            //invalidad data/log
+            _ => {
+                if path == DATA_PATH {
+                    return Err("INVALID DATA".to_string());
+                } else if path == LOG_PATH {
+                    return Err("INVALID LOG".to_string());
+                } else {
+                    return Err("INVALID INFO".to_string());
+                }
+            }
         }
     }
-    hashmap
+    Ok(hashmap)
 }
 
 ///Funcion que dados el data y el log crea el hashmap de la base de datos hasta el momento
@@ -115,10 +129,10 @@ fn cargar_hashmap(path: &str, mut hashmap: HashMap<String, String>) -> HashMap<S
 /// * `log_path` &str - path al archivo log
 /// # Errores
 /// * al igual que cargar_hashMap, puede devolver errores de lectura de archivo
-pub fn crear_hashmap(data_path: &str, log_path: &str) -> HashMap<String, String> {
+pub fn crear_hashmap(data_path: &str, log_path: &str) -> Result<HashMap<String, String>, String> {
     let mut hash_map: HashMap<String, String> = HashMap::new();
     //si los archivo aun no existen, queda igual el hashmap
-    hash_map = cargar_hashmap(data_path, hash_map); //cargamos data
-    hash_map = cargar_hashmap(log_path, hash_map); //cargamos log
-    hash_map
+    hash_map = cargar_hashmap(data_path, hash_map)?; //cargamos data
+    hash_map = cargar_hashmap(log_path, hash_map)?; //cargamos log
+    Ok(hash_map)
 }
