@@ -107,10 +107,7 @@ fn ejecutar_delete(clave: &String, hash_map: HashMap<String, String>) -> Result<
         let log_file: File = match abrir_para_appendear(LOG_PATH) {
             Ok(file) => file,
             Err(_) => {
-                return Err(format!(
-                    "INVALID LOG FILE",
-                   
-                ));
+                return Err("INVALID LOG FILE".to_string());
             }
         };
         match escribir_archivo(log_file, log_line) {

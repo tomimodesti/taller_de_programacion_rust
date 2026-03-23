@@ -103,7 +103,7 @@ fn cargar_hashmap(path: &str, mut hashmap: HashMap<String, String>) -> HashMap<S
             [k, v] => {
                 hashmap.insert(k.to_string(), v.to_string());
             }
-            _ => continue, 
+            _ => continue,
         }
     }
     hashmap

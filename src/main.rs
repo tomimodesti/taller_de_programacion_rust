@@ -43,17 +43,9 @@ pub fn main() {
 mod tests {
 
     use super::*;
+    use std::process::{Command, Stdio};
     use std::thread;
     use std::time::Duration;
-    use std::{
-        fs,
-        process::{Command, Stdio},
-    };
-
-    fn limpiar_archivos() {
-        let _ = fs::remove_file(".minikv.data");
-        let _ = fs::remove_file(".minikv.log");
-    }
 
     #[test]
     fn test_pareso_valido() {
@@ -72,12 +64,11 @@ mod tests {
         //comando invalido
         let argumentos = vec!["minikv".to_string(), "length".to_string(), "a".to_string()];
         let resultado = parseo_comando(argumentos);
-        assert!(!resultado.is_ok());
+        assert!(resultado.is_err());
     }
 
     #[test]
     fn test_ejecuccion_set() {
-        limpiar_archivos();
         let child = Command::new("target/debug/minikv")
             .arg("set")
             .arg("clave")
@@ -88,12 +79,10 @@ mod tests {
         let output = child.wait_with_output().expect("Fallo al esperar");
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("OK"));
-        limpiar_archivos();
     }
 
     #[test]
     fn test_ejecuccion_get() {
-        limpiar_archivos();
         let _child = Command::new("target/debug/minikv")
             .arg("set")
             .arg("clave")
@@ -110,13 +99,10 @@ mod tests {
         let get_output = get.wait_with_output().expect("Fallo al esperar");
         let get_stdout = String::from_utf8_lossy(&get_output.stdout);
         assert!(get_stdout.contains("valor"));
-        limpiar_archivos();
     }
 
     #[test]
     fn test_ejecuccion_lenght() {
-        limpiar_archivos();
-
         let comando1 = Command::new("target/debug/minikv")
             .args(["set", "clave", "valor"])
             .status()
@@ -145,12 +131,10 @@ mod tests {
         let stdout = String::from_utf8_lossy(&child.stdout);
         let stdout = stdout.trim();
         assert_eq!(stdout, "3");
-        limpiar_archivos();
     }
 
     #[test]
     fn test_consistencia_snapshot() {
-        limpiar_archivos();
         let comando_set = Command::new("target/debug/minikv")
             .args(["set", "clave", "valor"])
             .status()

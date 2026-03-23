@@ -41,8 +41,7 @@ pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando
                 let clave = match valores.next() {
                     Some(c) => c,
                     None => {
-                        return Err("MISSING ARGUMENT"
-                            .to_string());
+                        return Err("MISSING ARGUMENT".to_string());
                     }
                 };
                 Ok(Comando::Delete { clave })
@@ -50,23 +49,18 @@ pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando
                 let clave = match valores.next() {
                     Some(c) => c,
                     None => {
-                        return Err("MISSING ARGUMENT"
-                            .to_string());
+                        return Err("MISSING ARGUMENT".to_string());
                     }
                 };
                 let valor = match valores.next() {
                     Some(v) => v,
                     None => {
-                        return Err("MISSING ARGUMENT"
-                            .to_string());
+                        return Err("MISSING ARGUMENT".to_string());
                     }
                 };
                 Ok(Comando::Set { clave, valor })
             } else {
-                Err(
-                    "EXTRA ARGUMENT"
-                        .to_string(),
-                )
+                Err("EXTRA ARGUMENT".to_string())
             }
         }
         "get" => {
