@@ -1,14 +1,13 @@
 //! Modulo archivo: maneja lo relacionado a busqueda en path,
 //! apertura, lectura y escritura de archivos
 
+use crate::procesar_linea;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::{
     fs::{File, OpenOptions},
     io::Write,
 };
-
-use crate::{DATA_PATH, LOG_PATH};
 
 ///Funcion que crea un archivo, si ya existe lo sobreescribe borrando su contenido
 /// # Arguments
@@ -67,62 +66,6 @@ pub fn escribir_archivo(mut file: File, contenido: String) -> Result<String, Str
     }
 }
 
-///Funcion que dado un path y un hashmap,
-/// carga el hashmap con los datos del archivo,
-/// si el archivo no existe devuelve el hashmap dado sin modificar
-/// # Argumentos
-/// * `path` - recibe un path al archivo que queremos leer para cargar el hashmap
-/// * `hashmap` - recibe un hashmap ya inicializado
-/// # Errores
-/// * errores de lectura del archivo al abrir o leer
-fn cargar_hashmap(
-    path: &str,
-    mut hashmap: HashMap<String, String>,
-) -> Result<HashMap<String, String>, String> {
-    let archivo = buscar_archivo(path);
-    //asi la funcion me sirve para leer tanto data como log
-    let archivo_abierto = match archivo {
-        Ok(file) => file,
-        Err(_) => {
-            return Ok(hashmap);
-        }
-    };
-    let reader = BufReader::new(archivo_abierto);
-
-    for line in reader.lines() {
-        let linea = match line {
-            Ok(l) => l,
-            Err(_) => continue,
-        };
-        let partes: Vec<&str> = linea.split_whitespace().collect();
-        match partes.as_slice() {
-            ["set", clave, valor] => {
-                //si en el log hay un set, lo agrego al hashmap, si ya hay una clave igual se sobreescribe el valor
-                //para evitar duplicados
-                hashmap.insert(clave.to_string(), valor.to_string());
-            }
-            ["set", clave] => {
-                //si en el log hay un unset
-                hashmap.remove(*clave);
-            }
-            [k, v] => {
-                hashmap.insert(k.to_string(), v.to_string());
-            }
-            //invalidad data/log
-            _ => {
-                if path == DATA_PATH {
-                    return Err("INVALID DATA".to_string());
-                } else if path == LOG_PATH {
-                    return Err("INVALID LOG".to_string());
-                } else {
-                    return Err("INVALID INFO".to_string());
-                }
-            }
-        }
-    }
-    Ok(hashmap)
-}
-
 ///Funcion que dados el data y el log crea el hashmap de la base de datos hasta el momento
 /// # Argumentos
 /// * `data_path` &str - path al archivo data
@@ -132,7 +75,88 @@ fn cargar_hashmap(
 pub fn crear_hashmap(data_path: &str, log_path: &str) -> Result<HashMap<String, String>, String> {
     let mut hash_map: HashMap<String, String> = HashMap::new();
     //si los archivo aun no existen, queda igual el hashmap
-    hash_map = cargar_hashmap(data_path, hash_map)?; //cargamos data
-    hash_map = cargar_hashmap(log_path, hash_map)?; //cargamos log
+    hash_map = cargar_hashmap_data(data_path, hash_map)?; //cargamos data
+    hash_map = cargar_hashmap_log(log_path, hash_map)?; //cargamos log
     Ok(hash_map)
+}
+
+fn cargar_hashmap_data(
+    data_path: &str,
+    mut hashmap: HashMap<String, String>,
+) -> Result<HashMap<String, String>, String> {
+    let archivo = buscar_archivo(data_path);
+    let archivo_abierto = match archivo {
+        Ok(file) => file,
+        Err(_) => {
+            return Ok(hashmap);
+        }
+    };
+    let reader = BufReader::new(archivo_abierto);
+    for line in reader.lines() {
+        let linea = match line {
+            Ok(l) => l,
+            Err(_) => "INVALID DATA FILE".to_string(),
+        };
+
+        let linea = linea.trim();
+        if linea.is_empty() {
+            continue;
+        }
+
+        let partes = procesar_linea(linea);
+        match partes.as_slice() {
+            [k, v] => {
+                hashmap.insert(k.to_string(), v.to_string());
+            }
+            _ => return Err("INVALID DATA FILE".to_string()),
+        }
+    }
+    Ok(hashmap)
+}
+
+fn cargar_hashmap_log(
+    log_path: &str,
+    mut hashmap: HashMap<String, String>,
+) -> Result<HashMap<String, String>, String> {
+    let archivo = buscar_archivo(log_path);
+    let archivo_abierto = match archivo {
+        Ok(file) => file,
+        Err(_) => {
+            return Ok(hashmap);
+        }
+    };
+    let reader = BufReader::new(archivo_abierto);
+    for line in reader.lines() {
+        let linea = match line {
+            Ok(l) => l,
+            Err(_) => "INVALID LOG FILE".to_string(),
+        };
+        let linea = linea.trim();
+        if linea.is_empty() {
+            continue;
+        }
+        let partes = procesar_linea(linea);
+        match partes.as_slice() {
+            [op, k, v] if op == "set" => {
+                hashmap.insert(k.to_string(), v.to_string());
+            }
+            [op, k] if op == "set" => {
+                hashmap.remove(k);
+            }
+            _ => return Err("INVALID LOG FILE".to_string()),
+        }
+    }
+    Ok(hashmap)
+}
+
+///Funcion usada para escribir en el data_file la informacion de la minikv,
+///     quedandose solo con los pares `<clave>` `<valor>` que no fueron borrados
+pub fn escrbir_data(mut data_file: File, hash_map: HashMap<String, String>) -> Result<(), String> {
+    for (clave, valor) in &hash_map {
+        let linea = format!("\"{}\" \"{}\"\n", clave, valor);
+        data_file
+            .write_all(linea.as_bytes())
+            .map_err(|_| "Error al escribir".to_string())?;
+    }
+    Ok(())
 }

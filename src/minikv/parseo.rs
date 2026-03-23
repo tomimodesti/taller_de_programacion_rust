@@ -95,3 +95,32 @@ pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando
         _ => Err("UNKNOWN COMMAND".to_string()),
     }
 }
+
+///Funcion que dado una linea la procesa devolviendo un vector con sus partes
+pub fn procesar_linea(linea: &str) -> Vec<String> {
+    let mut partes = Vec::new();
+    let mut actual = String::new();
+    let mut en_comillas = false;
+    let mut escapado = false;
+    for c in linea.chars() {
+        if escapado {
+            actual.push(c);
+            escapado = false;
+        } else if c == '\\' {
+            escapado = true;
+        } else if c == '"' {
+            en_comillas = !en_comillas;
+        } else if c.is_whitespace() && !en_comillas {
+            if !actual.is_empty() {
+                partes.push(actual.clone());
+                actual.clear();
+            }
+        } else {
+            actual.push(c);
+        }
+    }
+    if !actual.is_empty() {
+        partes.push(actual);
+    }
+    partes
+}

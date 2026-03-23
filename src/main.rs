@@ -2,9 +2,10 @@
 //! Modulos usados: archivo, comando y parseo
 //! Se utilizo herramientas de la std, para los modulos (Files, HashMap,etc.)
 mod minikv;
-use minikv::archivo::crear_hashmap;
+
+use minikv::archivo::{crear_hashmap, escrbir_data};
 use minikv::comandos::Comando;
-use minikv::parseo::parseo_comando;
+use minikv::parseo::{parseo_comando, procesar_linea};
 
 const DATA_PATH: &str = ".minikv.data";
 const LOG_PATH: &str = ".minikv.log";

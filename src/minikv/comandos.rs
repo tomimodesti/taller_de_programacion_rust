@@ -1,9 +1,9 @@
 //! Modulo dedicado a definicion y manejo de los distintos tipos de comandos
 //! permitidos para  manejar minikv, como SET, GET, SNAPSHOT
+use crate::escrbir_data;
 use crate::minikv::archivo::{abrir_para_appendear, crear_archivo, escribir_archivo};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Write;
 
 const LOG_PATH: &str = ".minikv.log";
 const DATA_PATH: &str = ".minikv.data";
@@ -52,8 +52,8 @@ impl Comando {
 /// # Devuelve
 /// * OK --> si pudo ingresar el conjunto clave valor
 /// * mensaje de error sino pudo terminar la operacion
-fn ejecutar_set(clave: &String, valor: &String) -> Result<String, String> {
-    let log_line = format!("set \"{}\" \"{}\"", clave, valor);
+fn ejecutar_set(clave: &String, valor: &str) -> Result<String, String> {
+    let log_line = format!("set \"{}\" \"{}\"", clave, valor.replace("\"", "\\\""));
     let log_file: File = match abrir_para_appendear(LOG_PATH) {
         Ok(file) => file,
         Err(_) => return Err("Error al abrir el LOG".to_string()),
@@ -82,10 +82,9 @@ fn ejecutar_set(clave: &String, valor: &String) -> Result<String, String> {
 /// * el valor que fue asignada a esa clave
 /// * NOT FOUND --> si no pudo encontrar el valor de esa clave
 fn ejecutar_get(clave: &String, hash_map: HashMap<String, String>) -> Result<String, String> {
-    let clave = format!("\"{}\"", clave);
-    match hash_map.get(&clave) {
+    match hash_map.get(clave) {
         Some(valor) => {
-            let valor_limpio = valor.trim_matches('"');
+            let valor_limpio = valor;
             Ok(valor_limpio.to_string())
         }
         None => Err("NOT FOUND".to_string()),
@@ -103,25 +102,20 @@ fn ejecutar_get(clave: &String, hash_map: HashMap<String, String>) -> Result<Str
 /// ```
 ///   # Errores
 /// * errores para abrir los archivos correspondientes
-fn ejecutar_delete(clave: &String, hash_map: HashMap<String, String>) -> Result<String, String> {
-    let clave = format!("\"{}\"", clave);
-    if hash_map.contains_key(&clave) {
-        let log_line: String = format!("set {}", clave);
-        let log_file: File = match abrir_para_appendear(LOG_PATH) {
-            Ok(file) => file,
-            Err(_) => {
-                return Err("INVALID LOG FILE".to_string());
-            }
-        };
-        match escribir_archivo(log_file, log_line) {
-            Ok(_) => Ok("OK".to_string()),
-            Err(e) => Err(format!(
-                "Error al escribir en el archivo de log {}: {}",
-                LOG_PATH, e
-            )),
+fn ejecutar_delete(clave: &String, _hash_map: HashMap<String, String>) -> Result<String, String> {
+    let log_line: String = format!("set \"{}\"", clave);
+    let log_file: File = match abrir_para_appendear(LOG_PATH) {
+        Ok(file) => file,
+        Err(_) => {
+            return Err("INVALID LOG FILE".to_string());
         }
-    } else {
-        Err("NOT FOUND".to_string())
+    };
+    match escribir_archivo(log_file, log_line) {
+        Ok(_) => Ok("OK".to_string()),
+        Err(e) => Err(format!(
+            "Error al escribir en el archivo de log {}: {}",
+            LOG_PATH, e
+        )),
     }
 }
 
@@ -144,16 +138,4 @@ fn ejecutar_snapshot(hash_map: HashMap<String, String>) -> Result<String, String
     let data = crear_archivo(DATA_PATH)?;
     escrbir_data(data, hash_map)?;
     Ok("OK".to_string())
-}
-
-///Funcion usada para escribir en el data_file la informacion de la minikv,
-///     quedandose solo con los pares `<clave>` `<valor>` que no fueron borrados
-fn escrbir_data(mut data_file: File, hash_map: HashMap<String, String>) -> Result<(), String> {
-    for (clave, valor) in &hash_map {
-        let linea = format!("{} {}\n", clave, valor);
-        data_file
-            .write_all(linea.as_bytes())
-            .map_err(|_| "INVALID DATA FILE".to_string())?;
-    }
-    Ok(())
 }
