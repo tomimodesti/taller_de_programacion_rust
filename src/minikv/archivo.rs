@@ -80,6 +80,15 @@ pub fn crear_hashmap(data_path: &str, log_path: &str) -> Result<HashMap<String, 
     Ok(hash_map)
 }
 
+///Funcion que toma el path al data y guarda la informacion pertintente
+///     respetando la estructura que deberia de tener el mismo:
+///     `<key>` `<value>`
+/// # Argumentos
+/// * data_path - path al data
+/// * hashmap - hashmap
+/// # Errores
+/// * Errores de estructura de log, si el data no tiene la estructura marcada aborta el programa
+/// * Errores de lectura de archivos
 fn cargar_hashmap_data(
     data_path: &str,
     mut hashmap: HashMap<String, String>,
@@ -114,6 +123,15 @@ fn cargar_hashmap_data(
     Ok(hashmap)
 }
 
+///Funcion que toma el path al log y guarda la informacion pertintente
+///     respetando la estructura que deberia de tener el mismo
+///     "set" `<key>` `<value>` o "set" `<key>`
+/// # Argumentos
+/// * log_path - path al log
+/// * hashmap - hashmap vacio
+/// # Errores
+/// * Errores de estructura de log, si el log no tiene la estructura marcada aborta el programa
+/// * Errores de lectura de archivos
 fn cargar_hashmap_log(
     log_path: &str,
     mut hashmap: HashMap<String, String>,

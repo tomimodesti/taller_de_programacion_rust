@@ -3,4 +3,11 @@ name = "minikv"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
+[[bin]]
+name = "minikv-server"
+path = "src/bin/server.rs"
+
+
+[[bin]]
+name = "minikv-cliente"
+name = "src/bin/cliente.rs"
