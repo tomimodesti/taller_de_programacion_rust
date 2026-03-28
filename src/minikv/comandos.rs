@@ -1,12 +1,8 @@
 //! Modulo dedicado a definicion y manejo de los distintos tipos de comandos
 //! permitidos para  manejar minikv, como SET, GET, SNAPSHOT
-use crate::escrbir_data;
-use crate::minikv::archivo::{abrir_para_appendear, crear_archivo, escribir_archivo};
-use std::collections::HashMap;
-use std::fs::File;
 
-const LOG_PATH: &str = ".minikv.log";
-const DATA_PATH: &str = ".minikv.data";
+use std::collections::HashMap;
+
 
 /// Enum comandos disponibles:
 /// Set: setea un valor para una clave, si la clave ya existe se sobreescribe el valor
@@ -52,8 +48,8 @@ impl Comando {
 /// # Devuelve
 /// * OK --> si pudo ingresar el conjunto clave valor
 /// * mensaje de error sino pudo terminar la operacion
-fn ejecutar_set(clave: &String, valor: &str) -> Result<String, String> {
-    let log_line = format!("set \"{}\" \"{}\"", clave, valor.replace("\"", "\\\""));
+fn ejecutar_set(_clave: &String, _valor: &str) -> Result<String, String> {
+    /*let log_line = format!("set \"{}\" \"{}\"", clave, valor.replace("\"", "\\\""));
     let log_file: File = match abrir_para_appendear(LOG_PATH) {
         Ok(file) => file,
         Err(_) => return Err("Error al abrir el LOG".to_string()),
@@ -61,7 +57,8 @@ fn ejecutar_set(clave: &String, valor: &str) -> Result<String, String> {
     match escribir_archivo(log_file, log_line) {
         Ok(_) => Ok("OK".to_string()),
         Err(_) => Err("Error al escribir el set en log".to_string()),
-    }
+    }*/
+    Ok("Ok".to_string())
 }
 
 /// Funcion GET, dada una clave, busca en la base si hay un valor asignado a la misma
@@ -81,14 +78,15 @@ fn ejecutar_set(clave: &String, valor: &str) -> Result<String, String> {
 /// # Devuelve
 /// * el valor que fue asignada a esa clave
 /// * NOT FOUND --> si no pudo encontrar el valor de esa clave
-fn ejecutar_get(clave: &String, hash_map: HashMap<String, String>) -> Result<String, String> {
-    match hash_map.get(clave) {
+fn ejecutar_get(_clave: &String, _hash_map: HashMap<String, String>) -> Result<String, String> {
+    /*match hash_map.get(clave) {
         Some(valor) => {
             let valor_limpio = valor;
             Ok(valor_limpio.to_string())
         }
         None => Err("NOT FOUND".to_string()),
-    }
+    }*/
+    Ok("Ok".to_string())
 }
 
 ///Funcion DELETE, toma la clave ingresada y
@@ -102,8 +100,8 @@ fn ejecutar_get(clave: &String, hash_map: HashMap<String, String>) -> Result<Str
 /// ```
 ///   # Errores
 /// * errores para abrir los archivos correspondientes
-fn ejecutar_delete(clave: &String, _hash_map: HashMap<String, String>) -> Result<String, String> {
-    let log_line: String = format!("set \"{}\"", clave);
+fn ejecutar_delete(_clave: &String, _hash_map: HashMap<String, String>) -> Result<String, String> {
+    /*let log_line: String = format!("set \"{}\"", clave);
     let log_file: File = match abrir_para_appendear(LOG_PATH) {
         Ok(file) => file,
         Err(_) => {
@@ -117,6 +115,8 @@ fn ejecutar_delete(clave: &String, _hash_map: HashMap<String, String>) -> Result
             LOG_PATH, e
         )),
     }
+    */
+    Ok("Ok".to_string())
 }
 
 ///Funcion LENGTH, devuelve el largo de la base hasta el momento
@@ -124,8 +124,8 @@ fn ejecutar_delete(clave: &String, _hash_map: HashMap<String, String>) -> Result
 /// * minikv length
 ///   -------------- (terminal)
 ///   3
-fn ejecutar_length(hash_map: HashMap<String, String>) -> Result<String, String> {
-    Ok(format!("{}", hash_map.len()))
+fn ejecutar_length(_hash_map: HashMap<String, String>) -> Result<String, String> {
+    Ok("Ok".to_string())
 }
 
 ///Funcion SNAPSHOT, funcion que toma tanto el data como el log
@@ -133,9 +133,5 @@ fn ejecutar_length(hash_map: HashMap<String, String>) -> Result<String, String> 
 ///     truncando a log
 /// # Ejemplo
 /// * minikv snapshot
-fn ejecutar_snapshot(hash_map: HashMap<String, String>) -> Result<String, String> {
-    crear_archivo(LOG_PATH)?;
-    let data = crear_archivo(DATA_PATH)?;
-    escrbir_data(data, hash_map)?;
-    Ok("OK".to_string())
-}
+fn ejecutar_snapshot(_hash_map: HashMap<String, String>) -> Result<String, String> {
+    Ok("Ok".to_string())}

@@ -9,5 +9,5 @@ path = "src/bin/server.rs"
 
 
 [[bin]]
-name = "minikv-cliente"
-name = "src/bin/cliente.rs"
+name = "minikv-client"
+path = "src/bin/cliente.rs"
