@@ -1,6 +1,7 @@
 pub mod minikv {
-    pub mod comandos;
     pub mod archivo;
-    pub mod parseo;
+    pub mod comandos;
+    pub mod comunicacion;
     pub mod errores;
+    pub mod parseo;
 }
