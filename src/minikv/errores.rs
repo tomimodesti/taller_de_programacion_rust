@@ -1,5 +1,3 @@
-
-
 #[derive(Debug)]
 pub enum KvErrores {
     //RECUPERABLES:
@@ -14,10 +12,12 @@ pub enum KvErrores {
 }
 
 impl KvErrores {
-    pub fn es_recuperable (&self) -> bool {
+    pub fn es_recuperable(&self) -> bool {
         match self {
-        Self::NotFound | Self::ExtraArgument | Self::MissingArgument | Self::UnknownCommand => true,
-        _ => false,
+            Self::NotFound | Self::ExtraArgument | Self::MissingArgument | Self::UnknownCommand => {
+                true
+            }
+            _ => false,
         }
     }
 }

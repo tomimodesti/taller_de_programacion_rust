@@ -3,7 +3,6 @@
 
 use std::collections::HashMap;
 
-
 /// Enum comandos disponibles:
 /// Set: setea un valor para una clave, si la clave ya existe se sobreescribe el valor
 /// Get: obtiene el valor de una clave, si la clave no existe devuelve un mensaje de
@@ -134,4 +133,5 @@ fn ejecutar_length(_hash_map: HashMap<String, String>) -> Result<String, String>
 /// # Ejemplo
 /// * minikv snapshot
 fn ejecutar_snapshot(_hash_map: HashMap<String, String>) -> Result<String, String> {
-    Ok("Ok".to_string())}
+    Ok("Ok".to_string())
+}

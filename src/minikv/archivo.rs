@@ -111,7 +111,7 @@ fn cargar_hashmap_data(
             continue;
         }
 
-        let partes:Vec<String> = Vec::new();
+        let partes: Vec<String> = Vec::new();
         match partes.as_slice() {
             [k, v] => {
                 hashmap.insert(k.to_string(), v.to_string());
@@ -152,7 +152,7 @@ fn cargar_hashmap_log(
         if linea.is_empty() {
             continue;
         }
-        let partes:Vec<String> = Vec::new();
+        let partes: Vec<String> = Vec::new();
         match partes.as_slice() {
             [op, k, v] if op == "set" => {
                 hashmap.insert(k.to_string(), v.to_string());
