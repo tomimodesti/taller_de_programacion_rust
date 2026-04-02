@@ -1,14 +1,15 @@
 //! Modulo archivo: maneja lo relacionado a busqueda en path,
 //! apertura, lectura y escritura de archivos
-
+use crate::Comando;
 use crate::procesar_linea;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
+use std::str::FromStr;
+
 use std::{
     fs::{File, OpenOptions},
     io::Write,
 };
-
 ///Funcion que crea un archivo, si ya existe lo sobreescribe borrando su contenido
 /// # Arguments
 /// * `path` - Ruta del archivo a crear - &str
@@ -85,11 +86,8 @@ fn cargar_hashmap_data(
     mut hashmap: HashMap<String, String>,
 ) -> Result<HashMap<String, String>, String> {
     let archivo = buscar_archivo(data_path);
-    let archivo_abierto = match archivo {
-        Ok(file) => file,
-        Err(_) => {
-            return Ok(hashmap);
-        }
+    let Ok(archivo_abierto) = archivo else {
+        return Ok(hashmap);
     };
     let reader = BufReader::new(archivo_abierto);
     for line in reader.lines() {
@@ -119,11 +117,8 @@ fn cargar_hashmap_log(
     mut hashmap: HashMap<String, String>,
 ) -> Result<HashMap<String, String>, String> {
     let archivo = buscar_archivo(log_path);
-    let archivo_abierto = match archivo {
-        Ok(file) => file,
-        Err(_) => {
-            return Ok(hashmap);
-        }
+    let Ok(archivo_abierto) = archivo else {
+        return Ok(hashmap);
     };
     let reader = BufReader::new(archivo_abierto);
     for line in reader.lines() {
@@ -135,13 +130,17 @@ fn cargar_hashmap_log(
         if linea.is_empty() {
             continue;
         }
-        let partes = procesar_linea(linea);
-        match partes.as_slice() {
-            [op, k, v] if op == "set" => {
-                hashmap.insert(k.to_string(), v.to_string());
+        let Ok(comando @ Comando::Set { .. } | comando @ Comando::Delete { .. }) =
+            Comando::from_str(linea)
+        else {
+            return Err("INVALID LOG FILE".to_string());
+        };
+        match comando {
+            Comando::Set { clave, valor } => {
+                hashmap.insert(clave, valor);
             }
-            [op, k] if op == "set" => {
-                hashmap.remove(k);
+            Comando::Delete { clave } => {
+                hashmap.remove(&clave);
             }
             _ => return Err("INVALID LOG FILE".to_string()),
         }

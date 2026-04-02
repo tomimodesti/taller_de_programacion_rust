@@ -35,64 +35,43 @@ pub fn parseo_comando(args: Vec<String>) -> Result<Comando, String> {
 /// Ejemplo: minikv set key value -> comando = set, argumentos = [key, value]
 /// Ejemplo: minikv get key -> comando = get, argumentos = [ "key" ]
 pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando, String> {
-    let mut valores = argumentos.into_iter();
+    let args = argumentos.into_iter();
     match comando {
-        "set" => {
-            if valores.len() == 1 {
-                let clave = match valores.next() {
-                    Some(c) => c,
-                    None => {
-                        return Err("MISSING ARGUMENT".to_string());
-                    }
-                };
-                Ok(Comando::Delete { clave })
-            } else if valores.len() == 2 {
-                let clave = match valores.next() {
-                    Some(c) => c,
-                    None => {
-                        return Err("MISSING ARGUMENT".to_string());
-                    }
-                };
-                let valor = match valores.next() {
-                    Some(v) => v,
-                    None => {
-                        return Err("MISSING ARGUMENT".to_string());
-                    }
-                };
-                Ok(Comando::Set { clave, valor })
-            } else if valores.len() == 0 {
-                Err("MISSING ARGUMENT".to_string())
-            } else {
-                Err("EXTRA ARGUMENT".to_string())
-            }
-        }
-        "get" => {
-            if valores.len() == 0 {
-                return Err("MISSING ARGUMENT".to_string());
-            } else if valores.len() > 1 {
-                return Err("EXTRA ARGUMENT".to_string());
-            }
-            let clave = match valores.next() {
-                Some(c) => c,
-                None => {
-                    return Err("MISSING ARGUMENT".to_string());
-                }
-            };
-            Ok(Comando::Get { clave })
-        }
-        "length" => {
-            if valores.len() != 0 {
-                return Err("EXTRA ARGUMENT".to_string());
-            }
-            Ok(Comando::Length)
-        }
-        "snapshot" => {
-            if valores.len() != 0 {
-                return Err("EXTRA ARGUMENT".to_string());
-            }
-            Ok(Comando::Snapshot)
-        }
+        "set" => parse_set(args),
+        "get" => parseo_get(args),
+        "length" => parseo_length(args),
+        "snapshot" => parseo_snapshot(args),
         _ => Err("UNKNOWN COMMAND".to_string()),
+    }
+}
+
+fn parse_set(mut args: impl Iterator<Item = String>) -> Result<Comando, String> {
+    match (args.next(), args.next(), args.next()) {
+        (Some(clave), None, None) => Ok(Comando::Delete { clave }),
+        (Some(clave), Some(valor), None) => Ok(Comando::Set { clave, valor }),
+        (None, _, _) => Err("MISSING ARGUMENT".to_string()),
+        (_, _, Some(_)) => Err("EXTRA ARGUMENT".to_string()),
+    }
+}
+fn parseo_get(mut args: impl Iterator<Item = String>) -> Result<Comando, String> {
+    match (args.next(), args.next()) {
+        (Some(clave), None) => Ok(Comando::Get { clave }),
+        (None, _) => Err("MISSING ARGUMENT".to_string()),
+        (_, Some(_)) => Err("EXTRA ARGUMENT".to_string()),
+    }
+}
+fn parseo_length(mut args: impl Iterator<Item = String>) -> Result<Comando, String> {
+    if args.next().is_none() {
+        Ok(Comando::Length)
+    } else {
+        Err("EXTRA ARGUMENT".to_string())
+    }
+}
+fn parseo_snapshot(mut args: impl Iterator<Item = String>) -> Result<Comando, String> {
+    if args.next().is_none() {
+        Ok(Comando::Snapshot)
+    } else {
+        Err("EXTRA ARGUMENT".to_string())
     }
 }
 

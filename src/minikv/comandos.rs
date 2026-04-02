@@ -2,8 +2,10 @@
 //! permitidos para  manejar minikv, como SET, GET, SNAPSHOT
 use crate::escrbir_data;
 use crate::minikv::archivo::{abrir_para_appendear, crear_archivo, escribir_archivo};
+use crate::procesar_linea;
 use std::collections::HashMap;
 use std::fs::File;
+use std::str::FromStr;
 
 const LOG_PATH: &str = ".minikv.log";
 const DATA_PATH: &str = ".minikv.data";
@@ -32,6 +34,30 @@ impl Comando {
             Comando::Delete { clave } => ejecutar_delete(clave, hash_map),
             Comando::Length => ejecutar_length(hash_map),
             Comando::Snapshot => ejecutar_snapshot(hash_map),
+        }
+    }
+}
+
+impl FromStr for Comando {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let partes = procesar_linea(s);
+        let partes: Vec<&str> = partes.iter().map(|p| p.as_str()).collect();
+        match partes.as_slice() {
+            ["set", k, v] => Ok(Comando::Set {
+                clave: k.to_string(),
+                valor: v.to_string(),
+            }),
+            ["get", k] => Ok(Comando::Get {
+                clave: k.to_string(),
+            }),
+            ["set", k] => Ok(Comando::Delete {
+                clave: k.to_string(),
+            }),
+            ["len"] => Ok(Comando::Length),
+            ["snapshot"] => Ok(Comando::Snapshot),
+            _ => Err("INVALID COMMAND".to_string()),
         }
     }
 }
