@@ -7,9 +7,11 @@ El servidor recibirá como argumento la dirección a través
 cargo run --bin minikv-server -- 192.168.0.0:12345
  */
 use std::{net::TcpListener, sync::mpsc, thread};
+use std::collections::HashMap;
 use std::io::{self, Write};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::{Arc,RwLock};
+use std::io::{Read,Seek};
 const DATA_PATH: &str = ".minikv.data";
 const LOG_PATH:&str = ".minikv.log";
 pub trait Storage : Read + Write + Seek + Send {}
@@ -54,6 +56,10 @@ pub fn main() {
             return;
         }
     };
+    //TODO: cargar el hashmap en memoria
+    let mut hashmap = HashMap::new();
+    hashmap = cargar_hashmap_
+
     let log_lock = Arc::new(RwLock::new(log_file));
     let data_lock = Arc::new(RwLock::new(data_file));
     //preparamos para el archivo log un thread especial que escribe en el, 
@@ -75,7 +81,12 @@ pub fn main() {
         // de todas las variables que se usen dentro del thread.
         manejar_log(log_receiver,LOG_PATH);
     });
-    let snap_shot_thread
+    let snapshot_thread = thread::spawn(move ||{
+    //thread que solo realiza los snaposhot, espera un mensaje de los threads
+    // asi solo 1 thread maneja el archivo data,
+    // y se evitan problemas de concurrencia,
+        manejar_snapshot();
+    });
     //paso 2: al obtener una solicitud, crear un thread que la maneje
     //paso 3: seguir esperando
 }
@@ -104,3 +115,8 @@ fn abrir_archivo(path: &str,append: bool) -> io::Result<Box<dyn Storage>> {
     
 }
 
+fn manejar_snapshot() {
+    //espera a que haya un mensaje para realizar un snapshot
+    //cuando lo recibe, bloquea el acceso al archivo data, 
+    // realiza el snapshot y luego desbloquea el acceso
+}
