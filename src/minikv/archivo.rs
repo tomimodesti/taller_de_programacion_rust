@@ -8,6 +8,8 @@ use std::{
     io::Write,
 };
 
+use crate::minikv::estructuras::Storage;
+
 ///Funcion que crea un archivo, si ya existe lo sobreescribe borrando su contenido
 /// # Arguments
 /// * `path` - Ruta del archivo a crear - &str
@@ -51,27 +53,31 @@ pub fn abrir_para_appendear(path: &str) -> Result<File, String> {
     }
 }
 
-///Funcion que dado un archivo y un contenido (string) escribe en el archivo
-/// #Arguments
-/// * `file` - archivo a escribir
-/// * `contenido` String - contenido a escribir en el archivo
-pub fn escribir_archivo(mut file: File, contenido: String) -> Result<String, String> {
-    match writeln!(file, "{}", contenido.trim()) {
-        Ok(()) => {
-            drop(file);
-            Ok("OK".to_string())
-        }
-        Err(e) => Err(format!("{}", e)),
+pub fn abrir_archivo(path: &str, append: bool) -> Result<File, String> {
+    //abrir el archivo, si no existe lo crea
+    //si append es true, se abre para agregar al final, sino se sobreescribe
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .append(append)
+        .open(path);
+    match file {
+        Ok(f) => Ok(f),
+        Err(_) => Err(format!("ARCHIVO {}", path)),
     }
 }
 
 ///Funcion que dados el data y el log crea el hashmap de la base de datos hasta el momento
 /// # Argumentos
-/// * `data_path` &str - path al archivo data
-/// * `log_path` &str - path al archivo log
+/// * `data_path` Box<dyn Storage> -  data
+/// * `log_path`  Box<dyn Storage> -  log
 /// # Errores
 /// * al igual que cargar_hashMap, puede devolver errores de lectura de archivo
-pub fn crear_hashmap(data_path: &str, log_path: &str) -> Result<HashMap<String, String>, String> {
+pub fn cargar_hashmap(
+    data_path: &mut dyn Storage,
+    log_path: &mut dyn Storage,
+) -> Result<HashMap<String, String>, String> {
     let mut hash_map: HashMap<String, String> = HashMap::new();
     //si los archivo aun no existen, queda igual el hashmap
     hash_map = cargar_hashmap_data(data_path, hash_map)?; //cargamos data
@@ -89,17 +95,10 @@ pub fn crear_hashmap(data_path: &str, log_path: &str) -> Result<HashMap<String, 
 /// * Errores de estructura de log, si el data no tiene la estructura marcada aborta el programa
 /// * Errores de lectura de archivos
 fn cargar_hashmap_data(
-    data_path: &str,
+    data_path: &mut dyn Storage,
     mut hashmap: HashMap<String, String>,
 ) -> Result<HashMap<String, String>, String> {
-    let archivo = buscar_archivo(data_path);
-    let archivo_abierto = match archivo {
-        Ok(file) => file,
-        Err(_) => {
-            return Ok(hashmap);
-        }
-    };
-    let reader = BufReader::new(archivo_abierto);
+    let reader = BufReader::new(data_path);
     for line in reader.lines() {
         let linea = match line {
             Ok(l) => l,
@@ -132,17 +131,10 @@ fn cargar_hashmap_data(
 /// * Errores de estructura de log, si el log no tiene la estructura marcada aborta el programa
 /// * Errores de lectura de archivos
 fn cargar_hashmap_log(
-    log_path: &str,
+    log_path: &mut dyn Storage,
     mut hashmap: HashMap<String, String>,
 ) -> Result<HashMap<String, String>, String> {
-    let archivo = buscar_archivo(log_path);
-    let archivo_abierto = match archivo {
-        Ok(file) => file,
-        Err(_) => {
-            return Ok(hashmap);
-        }
-    };
-    let reader = BufReader::new(archivo_abierto);
+    let reader = BufReader::new(log_path);
     for line in reader.lines() {
         let linea = match line {
             Ok(l) => l,

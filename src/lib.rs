@@ -3,5 +3,6 @@ pub mod minikv {
     pub mod comandos;
     pub mod comunicacion;
     pub mod errores;
+    pub mod estructuras;
     pub mod parseo;
 }

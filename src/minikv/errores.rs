@@ -9,6 +9,8 @@ pub enum KvErrores {
     //Irrecuperables:
     IoError(String),
     ConnectionClosed,
+    Timeout,
+    ClientSocketBinding,
 }
 
 impl KvErrores {
