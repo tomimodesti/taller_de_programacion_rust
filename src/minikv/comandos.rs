@@ -1,7 +1,8 @@
 //! Modulo dedicado a definicion y manejo de los distintos tipos de comandos
 //! permitidos para  manejar minikv, como SET, GET, SNAPSHOT
-
-use std::collections::HashMap;
+use std::sync::Arc;
+use std::{collections::HashMap, sync::{RwLock, mpsc::Sender}};
+use crate::minikv::estructuras::MensajePersistencia;
 
 /// Enum comandos disponibles:
 /// Set: setea un valor para una clave, si la clave ya existe se sobreescribe el valor
@@ -20,13 +21,13 @@ pub enum Comando {
 ///metodo compartido por todos los comandos
 ///  para conseguir cierto polimorfismo sin objetos
 impl Comando {
-    pub fn ejecutar(&self, hash_map: HashMap<String, String>) -> Result<String, String> {
+    pub fn ejecutar(&self, hashmap_lock: Arc<RwLock<HashMap<String,String>>>,sender:Sender<MensajePersistencia>) -> Result<String, String> {
         match self {
-            Comando::Set { clave, valor } => ejecutar_set(clave, valor),
-            Comando::Get { clave } => ejecutar_get(clave, hash_map),
-            Comando::Delete { clave } => ejecutar_delete(clave, hash_map),
-            Comando::Length => ejecutar_length(hash_map),
-            Comando::Snapshot => ejecutar_snapshot(hash_map),
+            Comando::Set { clave, valor } => ejecutar_set(clave, valor, sender,hashmap_lock),
+            Comando::Get { clave } => ejecutar_get(clave, hashmap_lock),
+            Comando::Delete { clave } => ejecutar_delete(clave, hashmap_lock,sender),
+            Comando::Length => ejecutar_length(hashmap_lock),
+            Comando::Snapshot => ejecutar_snapshot(hashmap_lock,sender),
         }
     }
 }
@@ -47,7 +48,7 @@ impl Comando {
 /// # Devuelve
 /// * OK --> si pudo ingresar el conjunto clave valor
 /// * mensaje de error sino pudo terminar la operacion
-fn ejecutar_set(_clave: &String, _valor: &str) -> Result<String, String> {
+fn ejecutar_set(_clave: &String, _valor: &str, _sender: Sender<MensajePersistencia>, _hashmap_lock: Arc<RwLock<HashMap<String, String>>>) -> Result<String, String> {
     /*let log_line = format!("set \"{}\" \"{}\"", clave, valor.replace("\"", "\\\""));
     let log_file: File = match abrir_para_appendear(LOG_PATH) {
         Ok(file) => file,
@@ -77,15 +78,20 @@ fn ejecutar_set(_clave: &String, _valor: &str) -> Result<String, String> {
 /// # Devuelve
 /// * el valor que fue asignada a esa clave
 /// * NOT FOUND --> si no pudo encontrar el valor de esa clave
-fn ejecutar_get(_clave: &String, _hash_map: HashMap<String, String>) -> Result<String, String> {
-    /*match hash_map.get(clave) {
-        Some(valor) => {
-            let valor_limpio = valor;
-            Ok(valor_limpio.to_string())
+fn ejecutar_get(clave: &String, hashmap_lock: Arc<RwLock<HashMap<String, String>>>) -> Result<String, String> {
+    //que haria get:
+    //1) pide el lock de lectura del hashmap
+    //2) busca la clave en el hashmap 
+    //3) si la encontro devolvemos el valor sino NOT FOUND
+    //4) se libera el lock cuando sale del scope de la funcion
+    if let Ok(hashmap) = hashmap_lock.read() {
+        if let Some(valor) = hashmap.get(clave) {
+            return Ok(valor.to_string());
         }
-        None => Err("NOT FOUND".to_string()),
-    }*/
-    Ok("Ok".to_string())
+        return Err("NOT FOUND".to_string());
+    }
+    //si llegamos aca el lock esta en estado poisoned
+        Err("Error al obtener el lock de lectura".to_string())
 }
 
 ///Funcion DELETE, toma la clave ingresada y
@@ -99,7 +105,7 @@ fn ejecutar_get(_clave: &String, _hash_map: HashMap<String, String>) -> Result<S
 /// ```
 ///   # Errores
 /// * errores para abrir los archivos correspondientes
-fn ejecutar_delete(_clave: &String, _hash_map: HashMap<String, String>) -> Result<String, String> {
+fn ejecutar_delete(_clave: &String, _hashmap_lock: Arc<RwLock<HashMap<String, String>>>, _sender: Sender<MensajePersistencia>) -> Result<String, String> {
     /*let log_line: String = format!("set \"{}\"", clave);
     let log_file: File = match abrir_para_appendear(LOG_PATH) {
         Ok(file) => file,
@@ -123,8 +129,12 @@ fn ejecutar_delete(_clave: &String, _hash_map: HashMap<String, String>) -> Resul
 /// * minikv length
 ///   -------------- (terminal)
 ///   3
-fn ejecutar_length(_hash_map: HashMap<String, String>) -> Result<String, String> {
-    Ok("Ok".to_string())
+fn ejecutar_length(hashmap_lock: Arc<RwLock<HashMap<String, String>>>) -> Result<String, String> {
+    if let Ok(hashmap) = hashmap_lock.read() {
+        return Ok(hashmap.len().to_string());
+    }
+    //si llegamos aca el lock esta en estado poisoned
+    Err("Error al obtener el lock de lectura".to_string())
 }
 
 ///Funcion SNAPSHOT, funcion que toma tanto el data como el log
@@ -132,6 +142,12 @@ fn ejecutar_length(_hash_map: HashMap<String, String>) -> Result<String, String>
 ///     truncando a log
 /// # Ejemplo
 /// * minikv snapshot
-fn ejecutar_snapshot(_hash_map: HashMap<String, String>) -> Result<String, String> {
-    Ok("Ok".to_string())
+fn ejecutar_snapshot(_hashmap_lock: Arc<RwLock<HashMap<String, String>>>, sender: Sender<MensajePersistencia>) -> Result<String, String> {
+    //que haria el snapshot: 
+    //envia por el sender al thread de persistencia un mensaje "SNAPSHOT"
+    //indicandole que debe realizar el snapshot
+    match sender.send(MensajePersistencia::Snapshot) {
+        Ok(_) => Ok("OK".to_string()),
+        Err(e) => Err(format!("Error al enviar el mensaje de snapshot: {}", e)),
+    }
 }
