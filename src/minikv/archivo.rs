@@ -1,15 +1,15 @@
 //! Modulo archivo: maneja lo relacionado a busqueda en path,
 //! apertura, lectura y escritura de archivos
 
+use crate::minikv::errores::KvErrores;
+use crate::minikv::estructuras::Storage;
+use crate::minikv::parseo::procesar_linea;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::{
     fs::{File, OpenOptions},
     io::Write,
 };
-use crate::minikv::errores::KvErrores;
-use crate::minikv::estructuras::Storage;
-use crate::minikv::parseo::procesar_linea;
 
 ///Funcion que crea un archivo, si ya existe lo sobreescribe borrando su contenido
 /// # Arguments
@@ -54,7 +54,7 @@ pub fn abrir_para_appendear(path: &str) -> Result<File, String> {
     }
 }
 
-///Funcion que abre un archivo pasandole un path como argumento e indicando si 
+///Funcion que abre un archivo pasandole un path como argumento e indicando si
 /// el modo de escritura es append o escritura basica
 pub fn abrir_archivo(path: &str, append: bool) -> Result<File, KvErrores> {
     //abrir el archivo, si no existe lo crea

@@ -10,7 +10,9 @@ use crate::minikv::{comandos::Comando, errores::KvErrores};
 /// ```
 pub fn parseo_comando(args: Vec<String>) -> Result<Comando, KvErrores> {
     if args.is_empty() {
-        return Err(KvErrores::Error("Error: comando no especificado".to_string()));
+        return Err(KvErrores::Error(
+            "Error: comando no especificado".to_string(),
+        ));
     }
     let mut iter = args.into_iter();
 
@@ -19,7 +21,9 @@ pub fn parseo_comando(args: Vec<String>) -> Result<Comando, KvErrores> {
             let argumentos: Vec<String> = iter.collect();
             decidir_comando(&nombre_comando, argumentos)
         }
-        None => Err(KvErrores::Error("Error: comando no especificado".to_string())),
+        None => Err(KvErrores::Error(
+            "Error: comando no especificado".to_string(),
+        )),
     }
 }
 
@@ -44,32 +48,32 @@ pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando
     }
 }
 
-fn procesar_set(mut args: impl Iterator<Item = String>) -> Result<Comando,KvErrores> {
+fn procesar_set(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErrores> {
     match (args.next(), args.next(), args.next()) {
-        (Some(clave),None,None) => Ok(Comando::Delete { clave }),
-        (Some(clave),Some(valor),None) => Ok(Comando::Set { clave, valor }),
+        (Some(clave), None, None) => Ok(Comando::Delete { clave }),
+        (Some(clave), Some(valor), None) => Ok(Comando::Set { clave, valor }),
         (None, _, _) => Err(KvErrores::MissingArgument),
-        (_,_,Some(_)) => Err(KvErrores::ExtraArgument),
+        (_, _, Some(_)) => Err(KvErrores::ExtraArgument),
     }
 }
-fn procesar_get (mut args: impl Iterator<Item = String>) -> Result<Comando,KvErrores> {
-    match (args.next(),args.next()) {
-        (Some(clave),None) => Ok(Comando::Get { clave }),
-        (None,_) => Err(KvErrores::MissingArgument),
+fn procesar_get(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErrores> {
+    match (args.next(), args.next()) {
+        (Some(clave), None) => Ok(Comando::Get { clave }),
+        (None, _) => Err(KvErrores::MissingArgument),
         (_, Some(_)) => Err(KvErrores::ExtraArgument),
     }
 }
-fn procesar_length(mut args: impl Iterator<Item = String>) -> Result<Comando,KvErrores> {
+fn procesar_length(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErrores> {
     if args.next().is_none() {
         Ok(Comando::Length)
-    }else {
+    } else {
         Err(KvErrores::ExtraArgument)
     }
 }
-fn procesar_snapshot(mut args: impl Iterator<Item = String>) -> Result<Comando,KvErrores> {
-    if args.next().is_none(){
+fn procesar_snapshot(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErrores> {
+    if args.next().is_none() {
         Ok(Comando::Snapshot)
-    }else {
+    } else {
         Err(KvErrores::ExtraArgument)
     }
 }
