@@ -1,3 +1,7 @@
+//! Modulo de errores: maneja todo lo relacionado a posibles errores que pueden surgir
+//! al ejecutar minikv, desde errores del cliente a errores del servidor a
+//! errores de comunicacion entre ambos
+
 #[derive(Debug)]
 pub enum KvErrores {
     //RECUPERABLES:

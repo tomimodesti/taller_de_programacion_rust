@@ -7,7 +7,6 @@ use std::{
     fs::{File, OpenOptions},
     io::Write,
 };
-
 use crate::minikv::errores::KvErrores;
 use crate::minikv::estructuras::Storage;
 use crate::minikv::parseo::procesar_linea;
@@ -55,6 +54,8 @@ pub fn abrir_para_appendear(path: &str) -> Result<File, String> {
     }
 }
 
+///Funcion que abre un archivo pasandole un path como argumento e indicando si 
+/// el modo de escritura es append o escritura basica
 pub fn abrir_archivo(path: &str, append: bool) -> Result<File, KvErrores> {
     //abrir el archivo, si no existe lo crea
     //si append es true, se abre para agregar al final, sino se sobreescribe
@@ -172,6 +173,9 @@ pub fn escrbir_data(mut data_file: File, hash_map: HashMap<String, String>) -> R
     Ok(())
 }
 
+///Funcion para abrir data y log con sus respectivos modos de escritura
+/// puede devolver errores de apertura de archivos, caso contrario devuelve
+/// ambos archivos
 pub fn abrir_archivos(data_path: &str, log_path: &str) -> Result<(File, File), KvErrores> {
     let data_file = abrir_archivo(data_path, false)?;
     let log_file = abrir_archivo(log_path, true)?;
