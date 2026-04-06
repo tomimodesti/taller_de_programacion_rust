@@ -9,6 +9,7 @@ use std::{
 };
 
 use crate::minikv::estructuras::Storage;
+use crate::minikv::parseo::procesar_linea;
 
 ///Funcion que crea un archivo, si ya existe lo sobreescribe borrando su contenido
 /// # Arguments
@@ -144,7 +145,7 @@ fn cargar_hashmap_log(
         if linea.is_empty() {
             continue;
         }
-        let partes: Vec<String> = Vec::new();
+        let partes: Vec<String> = procesar_linea(linea);
         match partes.as_slice() {
             [op, k, v] if op == "set" => {
                 hashmap.insert(k.to_string(), v.to_string());
