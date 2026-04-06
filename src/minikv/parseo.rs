@@ -10,7 +10,7 @@ use crate::minikv::comandos::Comando;
 /// ```
 pub fn parseo_comando(args: Vec<String>) -> Result<Comando, String> {
     println!("ARGS DEBUG: {:?}", args);
-    if args.len() < 1 {
+    if args.is_empty() {
         return Err("Error: comando no especificado".to_string());
     }
     let mut iter = args.into_iter();

@@ -8,6 +8,7 @@ use std::{
     io::Write,
 };
 
+use crate::minikv::errores::KvErrores;
 use crate::minikv::estructuras::Storage;
 use crate::minikv::parseo::procesar_linea;
 
@@ -54,7 +55,7 @@ pub fn abrir_para_appendear(path: &str) -> Result<File, String> {
     }
 }
 
-pub fn abrir_archivo(path: &str, append: bool) -> Result<File, String> {
+pub fn abrir_archivo(path: &str, append: bool) -> Result<File, KvErrores> {
     //abrir el archivo, si no existe lo crea
     //si append es true, se abre para agregar al final, sino se sobreescribe
     let file = std::fs::OpenOptions::new()
@@ -65,7 +66,7 @@ pub fn abrir_archivo(path: &str, append: bool) -> Result<File, String> {
         .open(path);
     match file {
         Ok(f) => Ok(f),
-        Err(_) => Err(format!("ARCHIVO {}", path)),
+        Err(_) => Err(KvErrores::Error("ERROR al abrir archivo".to_string())),
     }
 }
 
@@ -78,7 +79,7 @@ pub fn abrir_archivo(path: &str, append: bool) -> Result<File, String> {
 pub fn cargar_hashmap(
     data_path: &mut dyn Storage,
     log_path: &mut dyn Storage,
-) -> Result<HashMap<String, String>, String> {
+) -> Result<HashMap<String, String>, KvErrores> {
     let mut hash_map: HashMap<String, String> = HashMap::new();
     //si los archivo aun no existen, queda igual el hashmap
     hash_map = cargar_hashmap_data(data_path, hash_map)?; //cargamos data
@@ -90,7 +91,7 @@ pub fn cargar_hashmap(
 ///     respetando la estructura que deberia de tener el mismo:
 ///     `<key>` `<value>`
 /// # Argumentos
-/// * data_path - path al data
+/// * data_path - algo que funciona como Storage (podemos leer y escribir)
 /// * hashmap - hashmap
 /// # Errores
 /// * Errores de estructura de log, si el data no tiene la estructura marcada aborta el programa
@@ -98,12 +99,12 @@ pub fn cargar_hashmap(
 fn cargar_hashmap_data(
     data_path: &mut dyn Storage,
     mut hashmap: HashMap<String, String>,
-) -> Result<HashMap<String, String>, String> {
+) -> Result<HashMap<String, String>, KvErrores> {
     let reader = BufReader::new(data_path);
     for line in reader.lines() {
         let linea = match line {
             Ok(l) => l,
-            Err(_) => "INVALID DATA FILE".to_string(),
+            Err(_) => return Err(KvErrores::InvalidDataFile),
         };
 
         let linea = linea.trim();
@@ -116,7 +117,7 @@ fn cargar_hashmap_data(
             [k, v] => {
                 hashmap.insert(k.to_string(), v.to_string());
             }
-            _ => return Err("INVALID DATA FILE".to_string()),
+            _ => return Err(KvErrores::InvalidDataFile),
         }
     }
     Ok(hashmap)
@@ -134,12 +135,12 @@ fn cargar_hashmap_data(
 fn cargar_hashmap_log(
     log_path: &mut dyn Storage,
     mut hashmap: HashMap<String, String>,
-) -> Result<HashMap<String, String>, String> {
+) -> Result<HashMap<String, String>, KvErrores> {
     let reader = BufReader::new(log_path);
     for line in reader.lines() {
         let linea = match line {
             Ok(l) => l,
-            Err(_) => "INVALID LOG FILE".to_string(),
+            Err(_) => return Err(KvErrores::InvalidLogFile),
         };
         let linea = linea.trim();
         if linea.is_empty() {
@@ -153,7 +154,7 @@ fn cargar_hashmap_log(
             [op, k] if op == "set" => {
                 hashmap.remove(k);
             }
-            _ => return Err("INVALID LOG FILE".to_string()),
+            _ => return Err(KvErrores::InvalidLogFile),
         }
     }
     Ok(hashmap)
@@ -169,4 +170,10 @@ pub fn escrbir_data(mut data_file: File, hash_map: HashMap<String, String>) -> R
             .map_err(|_| "Error al escribir".to_string())?;
     }
     Ok(())
+}
+
+pub fn abrir_archivos(data_path: &str, log_path: &str) -> Result<(File, File), KvErrores> {
+    let data_file = abrir_archivo(data_path, false)?;
+    let log_file = abrir_archivo(log_path, true)?;
+    Ok((data_file, log_file))
 }
