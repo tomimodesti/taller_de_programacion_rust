@@ -15,115 +15,14 @@ use std::{
     time::Duration,
 };
 pub fn main() {
-    let mut lector = io::stdin().lock();
-    let args: Vec<String> = std::env::args().collect();
-    let direccion = match args.get(1) {
-        Some(dir) => dir,
-        None => {
-            println!("ERROR: <{}>", KvErrores::MissingArgument.to_str());
-            return;
-        }
-    };
-
-    let timeout = match obtener_timeout() {
-        Ok(t) => t,
-        Err(_) => Duration::from_secs(10), // valor por defecto
-    };
-
-    let mut stream = match conectar_servidor(direccion, timeout) {
-        Ok(s) => s,
+    let (mut stream, mut reader) = match inicializar_cliente() {
+        Ok(c) => c,
         Err(e) => {
             println!("ERROR: <{}>", e.to_str());
             return;
         }
     };
-
-    let reader_stream = match stream.try_clone() {
-        Ok(s) => s,
-        Err(_) => {
-            println!("ERROR: <No se pudo clonar el stream>");
-            return;
-        }
-    };
-    let mut reader = BufReader::new(reader_stream);
-
-    loop {
-        print!("> ");
-        match io::stdout().flush() {
-            Ok(_) => {}
-            Err(_) => {
-                println!("Error: <Error de lectura input>");
-                return;
-            }
-        }
-        match obtener_entrada(&mut lector) {
-            Ok(comando) => {
-                //aca enviariamos al server y esperamos la respuesta
-                //para esperar hasta que llegue algo o se acabe el timeout: set_read_timeout(Some(timeout)) en el socket y luego read() o recv()
-                println!("Comando a enviar: <{}>", comando);
-                //escribimos al server nuestro input y esperamos la respuesta
-                match stream.write_all(format!("{}\n", comando).as_bytes()) {
-                    Ok(_) =>
-                    //si pudo escribir, esperamos la respuesta
-                    {
-                        let mut respuesta = String::new();
-                        /*3 casos:
-                        1) llega la respuesta y se imprime
-                        2) error recuperable (ej: MISSING ARGUMENT), se imprime y continua : ERR_REC
-                        3) error no recuperable (ej: TIMEOUT), se imprime y se cierra el cliente: ERR_NO_REC
-
-                         */
-                        let res = reader.read_line(&mut respuesta);
-                        match res {
-                            Ok(0) => {
-                                println!("CONNECTION CLOSED");
-                                return;
-                            }
-                            Ok(_) => match traducir_respuesta(respuesta.as_bytes()) {
-                                ResultadoComunicacion::Continuar(r) => {
-                                    println!("Respuesta del servidor: <{}>", r.trim())
-                                }
-                                ResultadoComunicacion::Cerrar(e) => {
-                                    println!("ERROR <{}>", e.trim());
-                                    println!("Cerrando cliente");
-                                    return;
-                                }
-                            },
-                            //error de timeout
-                            Err(e) => {
-                                match e.kind() {
-                                    io::ErrorKind::TimedOut => {
-                                        println!("ERROR: <TIMEOUT>");
-                                    }
-                                    io::ErrorKind::ConnectionReset => {
-                                        println!("ERROR: <CONEXION PERDIDA>");
-                                    }
-                                    _ => {
-                                        println!("ERROR: <{}>", e);
-                                        println!("Cerrando cliente");
-                                    }
-                                }
-                                return;
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        println!("ERROR: <{}>", e);
-                    }
-                };
-            }
-            Err(KvErrores::EOF) => break,
-            Err(KvErrores::EMPTY) => continue,
-            Err(KvErrores::Error(e)) => {
-                println!("ERROR: <{}>", e);
-                break;
-            }
-            Err(_) => {
-                println!("Unknown Error");
-                break;
-            }
-        }
-    }
+    loop_cliente(&mut stream, &mut reader)
 }
 
 ///Funcion que dado un buffer devuelve su contenido, esta preparado para identificar
@@ -170,7 +69,6 @@ fn conectar_servidor(
             return Err(KvErrores::InvalidPuerto);
         }
     };
-
     //2) conectamos el server y seteamos el timeout de lectura
     let lista_direcciones: Vec<SocketAddr> = socket_addrs.collect();
     let stream = match TcpStream::connect(&lista_direcciones[..]) {
@@ -209,6 +107,81 @@ fn traducir_respuesta(buffer: &[u8]) -> ResultadoComunicacion {
         ResultadoComunicacion::Cerrar(format!("ERROR: <{}>", limpio))
     } else {
         ResultadoComunicacion::Continuar(respuesta.trim().to_string())
+    }
+}
+
+fn inicializar_cliente() -> Result<(TcpStream, BufReader<TcpStream>), KvErrores> {
+    let args: Vec<String> = std::env::args().collect();
+    let direccion = match args.get(1) {
+        Some(v) => Ok(v),
+        None => Err(KvErrores::MissingArgument),
+    }?;
+
+    let timeout = match obtener_timeout(){
+        Ok(s) => s,
+        Err(_) => Duration::from_secs(10),
+    };
+    let stream = conectar_servidor(direccion, timeout)?;
+    let reader_stream = stream
+        .try_clone()
+        .map_err(|_| KvErrores::ConnectionClosed)?;
+
+    let reader = BufReader::new(reader_stream);
+    Ok((stream, reader))
+}
+
+fn loop_cliente(stream: &mut TcpStream, reader: &mut BufReader<TcpStream>) {
+    let mut lector = io::stdin().lock();
+    loop {
+        print!("> ");
+        io::stdout().flush().ok();
+        let comando = match obtener_entrada(&mut lector) {
+            Ok(c) => c,
+            Err(KvErrores::EOF) => break,
+            Err(KvErrores::EMPTY) => continue,
+            Err(e) => {
+                println!("ERROR: <{}>", e.to_str());
+                break;
+            }
+        };
+        println!("Comando a enviar: <{}>", comando);
+        if let Err(e) = enviar_comando(stream, &comando) {
+            println!("ERROR: <{}>", e.to_str());
+            continue;
+        }
+        match recibir_respuesta(reader) {
+            ResultadoComunicacion::Continuar(r) => {
+                println!("Respuesta del servidor: <{}>", r.trim())
+            }
+            ResultadoComunicacion::Cerrar(e) => {
+                println!("ERROR <{}>", e.trim());
+                break;
+            }
+        }
+    }
+}
+
+
+fn enviar_comando(stream: &mut TcpStream, comando: &str) -> Result<(), KvErrores> {
+    stream
+        .write_all(format!("{}\n", comando).as_bytes())
+        .map_err(|_| KvErrores::ConnectionClosed)
+}
+
+fn recibir_respuesta(reader: &mut BufReader<TcpStream>) -> ResultadoComunicacion {
+    let mut respuesta = String::new();
+    match reader.read_line(&mut respuesta) {
+        Ok(0) => ResultadoComunicacion::Cerrar("CONNECTION CLOSED".to_string()),
+        Ok(_) => traducir_respuesta(respuesta.as_bytes()),
+        Err(e) => match e.kind() {
+            io::ErrorKind::TimedOut => {
+                ResultadoComunicacion::Cerrar("TIMEOUT".to_string())
+            }
+            io::ErrorKind::ConnectionReset => {
+                ResultadoComunicacion::Cerrar("CONEXION PERDIDA".to_string())
+            }
+            _ => ResultadoComunicacion::Cerrar("ERROR DE COMUNICACION".to_string()),
+        },
     }
 }
 
