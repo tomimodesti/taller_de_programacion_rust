@@ -9,11 +9,11 @@ use crate::minikv::comandos::Comando;
 /// `args` `Vec<String>` - argumentos dados por el usuario a nuestra motor de almacenamiento
 /// ```
 pub fn parseo_comando(args: Vec<String>) -> Result<Comando, String> {
-    if args.len() < 2 {
+    println!("ARGS DEBUG: {:?}", args);
+    if args.len() < 1 {
         return Err("Error: comando no especificado".to_string());
     }
     let mut iter = args.into_iter();
-    iter.next(); //salteo el primer elemento que es el nombre del programa
 
     match iter.next() {
         Some(nombre_comando) => {
