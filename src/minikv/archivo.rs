@@ -111,7 +111,7 @@ fn cargar_hashmap_data(
             continue;
         }
 
-        let partes: Vec<String> = Vec::new();
+        let partes: Vec<String> = procesar_linea(linea);
         match partes.as_slice() {
             [k, v] => {
                 hashmap.insert(k.to_string(), v.to_string());
