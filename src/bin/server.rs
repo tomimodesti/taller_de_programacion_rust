@@ -37,7 +37,6 @@ pub fn main() {
             return;
         }
     };
-    println!("Servidor escuchando en <{}>", direccion);
     let (mut data_file, mut log_file) = match abrir_archivos(DATA_PATH, LOG_PATH) {
         Ok((a, b)) => (a, b),
         Err(e) => {
@@ -52,17 +51,22 @@ pub fn main() {
             return;
         }
     };
-    println!("Hashmap cargado con {} entradas", hashmap.len());
+    inicializar_threads(data_file, log_file, hashmap, listener);
+}
+
+fn inicializar_threads(
+    data_file: File,
+    log_file: File,
+    hashmap: HashMap<String, String>,
+    listener: TcpListener,
+) {
     let log_lock = Arc::new(Mutex::new(log_file));
     let data_lock = Arc::new(RwLock::new(data_file));
     let hashmap_lock = Arc::new(RwLock::new(hashmap));
     let (persistencia_sender, persistencia_receiver) = mpsc::channel::<MensajePersistencia>();
-    println!("Estructuras de lock inicializadas");
-
     let log_clone = Arc::clone(&log_lock);
     let data_clone = Arc::clone(&data_lock);
     let hashmap_clone = Arc::clone(&hashmap_lock);
-
     //thread persistencia
     thread::spawn(move || {
         manejar_persistencia(persistencia_receiver, log_clone, data_clone, hashmap_clone);
@@ -80,11 +84,8 @@ fn manejar_persistencia(
 ) {
     //espera a que haya algo para escribir (set, delete o snapshot)
     for mensaje in persistencia_receiver {
-        //TODO: manejar cada mensaje de persistencia
         match mensaje {
             MensajePersistencia::Snapshot => {
-                // manejar snapshot
-
                 let mut data_file = match data.write() {
                     Ok(d) => d,
                     Err(_) => {
@@ -139,13 +140,6 @@ fn manejar_persistencia(
                 }
             }
             MensajePersistencia::Set { clave, valor } => {
-                // manejar set
-                // 1. pedir lock de escritura del log
-                // 2. escribir en el log la operacion set (ej: set a 1)
-                // 3. pedir lock de escritura del hashmap
-                // 4. actualizar el hashmap con la nueva clave valor
-                // 5. se liberan los locks al salir del scope de la funcion
-                //    cuando busca un nuevo mensaje de persistencia
                 let log_line: String =
                     format!("set \"{}\" \"{}\"\n", clave, valor.replace("\"", "\\\""));
                 match log.lock() {
@@ -172,9 +166,6 @@ fn manejar_persistencia(
                 }
             }
             MensajePersistencia::Delete { clave } => {
-                // manejar delete
-                //1. pedir lock de esctritura del log
-                //2. escribir en el log la operacion delete (ej: delete a)
                 let log_line: String = format!("set \"{}\"\n", clave);
                 match log.lock() {
                     Ok(mut log_file) => {
@@ -228,13 +219,11 @@ fn esperar_solicitudes(
     persistencia_sender: Sender<MensajePersistencia>,
     hashmap_lock: Arc<RwLock<HashMap<String, String>>>,
 ) {
-    println!("Esperando conexiones entrantes...");
     //este metodo bloquea el thread hasta que tenga algo que leer
     for stream in listener.incoming() {
         //stream es un result que puede ser Ok(TcpStream) o Err(e)
         match stream {
             Ok(s) => {
-                println!("Nueva conexion entrante");
                 let persistencia_sender_clone = persistencia_sender.clone();
                 let hashmap_clone = Arc::clone(&hashmap_lock);
                 //thread por cliente
@@ -255,7 +244,6 @@ fn manejar_solicitud(
     hashmap_lock: Arc<RwLock<HashMap<String, String>>>,
 ) {
     //manejamos las solicitudes del cliente
-
     let reader_stream = match stream.try_clone() {
         Ok(s) => s,
         Err(_) => {
@@ -267,7 +255,6 @@ fn manejar_solicitud(
     let mut linea = String::new();
     loop {
         linea.clear();
-        // leemos de a una linea: ej: set a 1\n get a
         match reader.read_line(&mut linea) {
             Ok(0) => {
                 println!("Conexion cerrada por el cliente");
@@ -275,15 +262,11 @@ fn manejar_solicitud(
             }
             Ok(_) => {
                 let linea = linea.trim();
-                println!("Mensaje recibido: <{}>", linea);
-                //aca parseamos el mensaje y hacemos lo que corresponda (set, get, delete, snapshot)
-                //luego de hacer la operacion, si es set o delete, enviamos un mensaje al thread de persistencia para que escriba en el log
-                //si es snapshot, le decimos al thread de persistencia que escriba el snapshot completo en el data
                 let args = procesar_linea(linea);
                 let comando = match parseo_comando(args) {
                     Ok(c) => c,
                     Err(e) => {
-                        let respuesta = format!("ERROR_REC: <{}>", e);
+                        let respuesta = format!("ERROR_REC: <{}>", e.to_str());
                         if escribir_respuesta(&mut stream, respuesta).is_err() {
                             break;
                         }
