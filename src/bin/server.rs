@@ -1,10 +1,9 @@
-use minikv::minikv::archivo::{abrir_archivo, cargar_hashmap};
+use minikv::minikv::archivo::{abrir_archivos, cargar_hashmap};
 use minikv::minikv::estructuras::MensajePersistencia;
 use minikv::minikv::parseo::parseo_comando;
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::Seek;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex, RwLock};
@@ -21,8 +20,6 @@ const DATA_PATH: &str = ".minikv.data";
 const LOG_PATH: &str = ".minikv.log";
 
 pub fn main() {
-    //paso 1: inicializar el servidor, cargar el data, log y hashmap
-    //paso 2: iniciar thread de persistencia
     let args = std::env::args().collect::<Vec<String>>();
     let direccion = match args.get(1) {
         Some(dir) => dir,
@@ -38,40 +35,27 @@ pub fn main() {
             return;
         }
     };
-    // aca ya tendriamos el socket preparado para escuchar las conexiones entrantes
     println!("Servidor escuchando en <{}>", direccion);
-
-    let mut data_file: File = match abrir_archivo(DATA_PATH, false) {
-        Ok(f) => f,
+    let (mut data_file, mut log_file) = match abrir_archivos(DATA_PATH, LOG_PATH) {
+        Ok((a, b)) => (a, b),
         Err(e) => {
-            println!("ERROR: <{}>", e);
+            println!("ERROR: <{}>", e.to_str());
             return;
         }
     };
-    let mut log_file: File = match abrir_archivo(LOG_PATH, true) {
-        Ok(f) => f,
-        Err(e) => {
-            println!("ERROR: <{}>", e);
-            return;
-        }
-    };
-
-    let mut hashmap: HashMap<String, String> = match cargar_hashmap(&mut data_file, &mut log_file) {
+    let hashmap: HashMap<String, String> = match cargar_hashmap(&mut data_file, &mut log_file) {
         Ok(h) => h,
         Err(e) => {
-            println!("ERROR: <{}>", e);
+            println!("ERROR: <{}>", e.to_str());
             return;
         }
     };
     println!("Hashmap cargado con {} entradas", hashmap.len());
-    //aca ya tendriamos el data, log y el hashmap preparados
-
     let log_lock = Arc::new(Mutex::new(log_file));
     let data_lock = Arc::new(RwLock::new(data_file));
     let hashmap_lock = Arc::new(RwLock::new(hashmap));
     let (persistencia_sender, persistencia_receiver) = mpsc::channel::<MensajePersistencia>();
     println!("Estructuras de lock inicializadas");
-    //aca tenemos los locks de las estructuras que vamos a compartir
 
     let log_clone = Arc::clone(&log_lock);
     let data_clone = Arc::clone(&data_lock);
@@ -79,16 +63,9 @@ pub fn main() {
 
     //thread persistencia
     thread::spawn(move || {
-        //se maneja la persistencia en un thread aparte,
-        //asi el thread principal del server solo se encarga de aceptar conexiones y
-        // delegar el manejo de cada solicitud a un thread aparte,
-        //sin preocuparse por la persistencia
         manejar_persistencia(persistencia_receiver, log_clone, data_clone, hashmap_clone);
     });
-
     println!("Thread de persistencia iniciado correctamente");
-
-    //paso 3: esperar solicitudes entrantes y delegar su manejo a threads aparte
     let hashmap_clone = Arc::clone(&hashmap_lock);
     esperar_solicitudes(listener, persistencia_sender, hashmap_clone);
 }
@@ -96,7 +73,7 @@ pub fn main() {
 fn manejar_persistencia<W: Write + Seek + Send + 'static>(
     persistencia_receiver: Receiver<MensajePersistencia>,
     log: Arc<Mutex<W>>,
-    data: Arc<RwLock<W>>,
+    _data: Arc<RwLock<W>>,
     hashmap: Arc<RwLock<HashMap<String, String>>>,
 ) {
     //espera a que haya algo para escribir (set, delete o snapshot)
@@ -108,12 +85,70 @@ fn manejar_persistencia<W: Write + Seek + Send + 'static>(
             }
             MensajePersistencia::Set { clave, valor } => {
                 // manejar set
+                // 1. pedir lock de escritura del log
+                // 2. escribir en el log la operacion set (ej: set a 1)
+                // 3. pedir lock de escritura del hashmap
+                // 4. actualizar el hashmap con la nueva clave valor
+                // 5. se liberan los locks al salir del scope de la funcion
+                //    cuando busca un nuevo mensaje de persistencia
+                let log_line: String =
+                    format!("set \"{}\" \"{}\"\n", clave, valor.replace("\"", "\\\""));
+                match log.lock() {
+                    Ok(mut log_file) => {
+                        if let Err(e) = log_file.write_all(log_line.as_bytes()) {
+                            println!("ERROR: <Error al escribir en el log: {}>", e);
+                            return;
+                        }
+                        println!("Operacion set persistida en el log");
+                    }
+                    Err(_) => {
+                        println!("ERROR: <El lock de log esta poisoned>");
+                        return;
+                    }
+                }
+                match hashmap.write() {
+                    Ok(mut hashmap) => {
+                        hashmap.insert(clave, valor);
+                    }
+                    Err(_) => {
+                        println!("ERROR: <El lock de hashmap esta poisoned>");
+                        return;
+                    }
+                }
             }
             MensajePersistencia::Delete { clave } => {
                 // manejar delete
+                //1. pedir lock de esctritura del log
+                //2. escribir en el log la operacion delete (ej: delete a)
+                let log_line: String = format!("set \"{}\"\n", clave);
+                match log.lock() {
+                    Ok(mut log_file) => {
+                        //el lock al salir del scope se libera automaticamente
+                        match log_file.write_all(log_line.as_bytes()) {
+                            Ok(_) => {
+                                println!("Operacion delete persistida en el log");
+                            }
+                            Err(e) => {
+                                println!("ERROR: <Error al escribir en el log: {}>", e);
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        println!("ERROR: <El lock de log esta poisoned>");
+                        return;
+                    }
+                }
+                match hashmap.write() {
+                    Ok(mut hashmap) => {
+                        hashmap.remove(&clave);
+                    }
+                    Err(_) => {
+                        println!("ERROR: <El lock de hashmap esta poisoned>");
+                        return;
+                    }
+                }
             }
         }
-       
     }
 }
 
@@ -184,27 +219,26 @@ fn manejar_solicitud(
                 break; //muere el thread
             }
             Ok(_) => {
+                let linea = linea.trim();
                 println!("Mensaje recibido: <{}>", linea);
                 //aca parseamos el mensaje y hacemos lo que corresponda (set, get, delete, snapshot)
                 //luego de hacer la operacion, si es set o delete, enviamos un mensaje al thread de persistencia para que escriba en el log
                 //si es snapshot, le decimos al thread de persistencia que escriba el snapshot completo en el data
                 let args = linea
-                    .trim()
                     .split_whitespace()
                     .map(|s| s.to_string())
                     .collect::<Vec<String>>();
                 let comando = match parseo_comando(args) {
                     Ok(c) => c,
                     Err(e) => {
-                        let respuesta = format!("ERROR: <{}>", e);
+                        let respuesta = format!("ERROR_REC: <{}>", e);
                         if escribir_respuesta(&mut stream, respuesta).is_err() {
-                            //ejemplo de respuesta: ERROR: <MISSING ARGUMENT> o ERROR: <UNKNOWN COMMAND>
                             break;
                         }
                         continue; //espera siguiente solicitud
                     }
                 };
-                //ejecutamos el comando y obtenemos la respuesta 
+                //ejecutamos el comando y obtenemos la respuesta
                 let hashmap_lock_clone = Arc::clone(&hashmap_lock);
                 let persistencia_sender_clone = persistencia_sender.clone();
                 match comando.ejecutar(hashmap_lock_clone, persistencia_sender_clone) {
