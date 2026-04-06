@@ -1,8 +1,10 @@
 use minikv::minikv::archivo::{abrir_archivos, cargar_hashmap};
 use minikv::minikv::estructuras::MensajePersistencia;
-use minikv::minikv::parseo::parseo_comando;
+use minikv::minikv::parseo::{parseo_comando, procesar_linea};
 use std::collections::HashMap;
+use std::fs::File;
 use std::io::Seek;
+use std::io::SeekFrom;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::sync::mpsc::{Receiver, Sender};
@@ -70,10 +72,10 @@ pub fn main() {
     esperar_solicitudes(listener, persistencia_sender, hashmap_clone);
 }
 
-fn manejar_persistencia<W: Write + Seek + Send + 'static>(
+fn manejar_persistencia(
     persistencia_receiver: Receiver<MensajePersistencia>,
-    log: Arc<Mutex<W>>,
-    _data: Arc<RwLock<W>>,
+    log: Arc<Mutex<File>>,
+    data: Arc<RwLock<File>>,
     hashmap: Arc<RwLock<HashMap<String, String>>>,
 ) {
     //espera a que haya algo para escribir (set, delete o snapshot)
@@ -82,6 +84,59 @@ fn manejar_persistencia<W: Write + Seek + Send + 'static>(
         match mensaje {
             MensajePersistencia::Snapshot => {
                 // manejar snapshot
+
+                let mut data_file = match data.write() {
+                    Ok(d) => d,
+                    Err(_) => {
+                        println!("ERROR: Lock de data en estado poisoned");
+                        return;
+                    }
+                };
+                // truncar data
+                if data_file.set_len(0).is_err() {
+                    println!("ERROR: truncando data");
+                    return;
+                }
+                if data_file.seek(SeekFrom::Start(0)).is_err() {
+                    println!("ERROR: seek data");
+                    return;
+                }
+
+                let hashmap = match hashmap.read() {
+                    Ok(h) => h,
+                    Err(_) => {
+                        println!("Lock de hashmap en estado poissoned");
+                        return;
+                    }
+                };
+
+                for (clave, valor) in &*hashmap {
+                    //escribimos sobre data
+                    let line = format!("\"{}\" \"{}\"\n", clave, valor.replace("\"", "\\\""));
+                    match data_file.write_all(line.as_bytes()) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            println!("ERROR: <no se pudo escribir en data>")
+                        }
+                    }
+                }
+                drop(data_file);
+                //trunco LOG
+                let mut log_file = match log.lock() {
+                    Ok(l) => l,
+                    Err(_) => {
+                        println!("LOG en estado poissoned");
+                        return;
+                    }
+                };
+                if log_file.set_len(0).is_err() {
+                    println!("ERROR: truncando data");
+                    return;
+                }
+                if log_file.seek(SeekFrom::Start(0)).is_err() {
+                    println!("ERROR: seek data");
+                    return;
+                }
             }
             MensajePersistencia::Set { clave, valor } => {
                 // manejar set
@@ -224,10 +279,7 @@ fn manejar_solicitud(
                 //aca parseamos el mensaje y hacemos lo que corresponda (set, get, delete, snapshot)
                 //luego de hacer la operacion, si es set o delete, enviamos un mensaje al thread de persistencia para que escriba en el log
                 //si es snapshot, le decimos al thread de persistencia que escriba el snapshot completo en el data
-                let args = linea
-                    .split_whitespace()
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>();
+                let args = procesar_linea(linea);
                 let comando = match parseo_comando(args) {
                     Ok(c) => c,
                     Err(e) => {

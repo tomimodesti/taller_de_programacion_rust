@@ -106,7 +106,7 @@ pub fn procesar_linea(linea: &str) -> Vec<String> {
         if escapado {
             actual.push(c);
             escapado = false;
-        } else if c == '\\' {
+        } else if c == '\\' && en_comillas {
             escapado = true;
         } else if c == '"' {
             en_comillas = !en_comillas;
