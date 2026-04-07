@@ -1,10 +1,10 @@
 use minikv::minikv::archivo::{abrir_archivos, cargar_hashmap};
+use minikv::minikv::network::{obtener_direccion,inicializar_tcplistener};
+use minikv::minikv::persistencia::{manejar_delete,manejar_set,manejar_snapshot};
 use minikv::minikv::estructuras::MensajePersistencia;
 use minikv::minikv::parseo::{parseo_comando, procesar_linea};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Seek;
-use std::io::SeekFrom;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::sync::mpsc::{Receiver, Sender};
@@ -22,11 +22,10 @@ const DATA_PATH: &str = ".minikv.data";
 const LOG_PATH: &str = ".minikv.log";
 
 pub fn main() {
-    let args = std::env::args().collect::<Vec<String>>();
-    let direccion = match args.get(1) {
-        Some(dir) => dir,
-        None => {
-            println!("ERROR: <INVALID ARGS>");
+    let direccion = match obtener_direccion() {
+        Ok(d) => d,
+        Err(e) => {
+            println!("{}", e.to_str());
             return;
         }
     };
@@ -71,7 +70,6 @@ fn inicializar_threads(
     thread::spawn(move || {
         manejar_persistencia(persistencia_receiver, log_clone, data_clone, hashmap_clone);
     });
-    println!("Thread de persistencia iniciado correctamente");
     let hashmap_clone = Arc::clone(&hashmap_lock);
     esperar_solicitudes(listener, persistencia_sender, hashmap_clone);
 }
@@ -86,132 +84,16 @@ fn manejar_persistencia(
     for mensaje in persistencia_receiver {
         match mensaje {
             MensajePersistencia::Snapshot => {
-                let mut data_file = match data.write() {
-                    Ok(d) => d,
-                    Err(_) => {
-                        println!("ERROR: Lock de data en estado poisoned");
-                        return;
-                    }
-                };
-                // truncar data
-                if data_file.set_len(0).is_err() {
-                    println!("ERROR: truncando data");
-                    return;
-                }
-                if data_file.seek(SeekFrom::Start(0)).is_err() {
-                    println!("ERROR: seek data");
-                    return;
-                }
-
-                let hashmap = match hashmap.read() {
-                    Ok(h) => h,
-                    Err(_) => {
-                        println!("Lock de hashmap en estado poissoned");
-                        return;
-                    }
-                };
-
-                for (clave, valor) in &*hashmap {
-                    //escribimos sobre data
-                    let line = format!("\"{}\" \"{}\"\n", clave, valor.replace("\"", "\\\""));
-                    match data_file.write_all(line.as_bytes()) {
-                        Ok(_) => {}
-                        Err(_) => {
-                            println!("ERROR: <no se pudo escribir en data>")
-                        }
-                    }
-                }
-                drop(data_file);
-                //trunco LOG
-                let mut log_file = match log.lock() {
-                    Ok(l) => l,
-                    Err(_) => {
-                        println!("LOG en estado poissoned");
-                        return;
-                    }
-                };
-                if log_file.set_len(0).is_err() {
-                    println!("ERROR: truncando data");
-                    return;
-                }
-                if log_file.seek(SeekFrom::Start(0)).is_err() {
-                    println!("ERROR: seek data");
-                    return;
-                }
+                manejar_snapshot(data.clone(), log.clone(), hashmap.clone());
             }
             MensajePersistencia::Set { clave, valor } => {
-                let log_line: String =
-                    format!("set \"{}\" \"{}\"\n", clave, valor.replace("\"", "\\\""));
-                match log.lock() {
-                    Ok(mut log_file) => {
-                        if let Err(e) = log_file.write_all(log_line.as_bytes()) {
-                            println!("ERROR: <Error al escribir en el log: {}>", e);
-                            return;
-                        }
-                        println!("Operacion set persistida en el log");
-                    }
-                    Err(_) => {
-                        println!("ERROR: <El lock de log esta poisoned>");
-                        return;
-                    }
-                }
-                match hashmap.write() {
-                    Ok(mut hashmap) => {
-                        hashmap.insert(clave, valor);
-                    }
-                    Err(_) => {
-                        println!("ERROR: <El lock de hashmap esta poisoned>");
-                        return;
-                    }
-                }
+                manejar_set(log.clone(), hashmap.clone(), clave, valor);
             }
             MensajePersistencia::Delete { clave } => {
-                let log_line: String = format!("set \"{}\"\n", clave);
-                match log.lock() {
-                    Ok(mut log_file) => {
-                        //el lock al salir del scope se libera automaticamente
-                        match log_file.write_all(log_line.as_bytes()) {
-                            Ok(_) => {
-                                println!("Operacion delete persistida en el log");
-                            }
-                            Err(e) => {
-                                println!("ERROR: <Error al escribir en el log: {}>", e);
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        println!("ERROR: <El lock de log esta poisoned>");
-                        return;
-                    }
-                }
-                match hashmap.write() {
-                    Ok(mut hashmap) => {
-                        hashmap.remove(&clave);
-                    }
-                    Err(_) => {
-                        println!("ERROR: <El lock de hashmap esta poisoned>");
-                        return;
-                    }
-                }
+                manejar_delete(log.clone(), hashmap.clone(), clave);
             }
         }
     }
-}
-
-fn inicializar_tcplistener(direccion: &str) -> Result<TcpListener, String> {
-    let direccion = match direccion.parse::<std::net::SocketAddr>() {
-        Ok(d) => d,
-        Err(_) => {
-            return Err("PUERTO INVALIDO".into());
-        }
-    };
-    let stream = match TcpListener::bind(direccion) {
-        Ok(s) => s,
-        Err(_) => {
-            return Err("SERVIDOR SOCKET BINDING".into());
-        }
-    };
-    Ok(stream)
 }
 
 fn esperar_solicitudes(
@@ -237,6 +119,7 @@ fn esperar_solicitudes(
         }
     }
 }
+
 
 fn manejar_solicitud(
     mut stream: TcpStream,
@@ -316,15 +199,16 @@ fn escribir_respuesta(stream: &mut TcpStream, respuesta: String) -> Result<(), S
     }
 }
 
+
 #[test]
 fn listener_valido() {
-    let res = inicializar_tcplistener("127.0.0.1:0");
+    let res = inicializar_tcplistener("127.0.0.1:0".to_string());
     assert!(res.is_ok());
 }
 
 #[test]
 fn listener_invalido() {
-    let res = inicializar_tcplistener("direccion_invalida");
+    let res = inicializar_tcplistener("direccion_invalida".to_string());
     assert!(res.is_err());
 }
 
@@ -351,9 +235,9 @@ fn escribir_respuesta_ok() {
 
 #[test]
 fn test_set_y_get() {
-    use std::sync::{Arc, RwLock};
     use std::collections::HashMap;
     use std::sync::mpsc;
+    use std::sync::{Arc, RwLock};
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
@@ -380,6 +264,6 @@ fn test_set_y_get() {
     let mut response = String::new();
 
     reader.read_line(&mut response).unwrap();
-    println!("{}",response);
+    println!("{}", response);
     assert!(response.contains("OK") || response.contains("clave"));
 }

@@ -49,6 +49,8 @@ pub fn decidir_comando(comando: &str, argumentos: Vec<String>) -> Result<Comando
     }
 }
 
+///funcion que dado los args que corresponden a un comando set, define si tiene la estructura correcta o no
+/// devolviendo un Comando o un Error en consecuencia
 fn procesar_set(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErrores> {
     match (args.next(), args.next(), args.next()) {
         (Some(clave), None, None) => Ok(Comando::Delete { clave }),
@@ -57,6 +59,9 @@ fn procesar_set(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErr
         (_, _, Some(_)) => Err(KvErrores::ExtraArgument),
     }
 }
+
+///funcion que dado los args que corresponden a un comando get, define si tiene la estructura correcta o no
+/// devolviendo un Comando o un Error en consecuencia
 fn procesar_get(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErrores> {
     match (args.next(), args.next()) {
         (Some(clave), None) => Ok(Comando::Get { clave }),
@@ -64,6 +69,9 @@ fn procesar_get(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErr
         (_, Some(_)) => Err(KvErrores::ExtraArgument),
     }
 }
+
+///funcion que dado los args que corresponden a un comando length, define si tiene la estructura correcta o no
+/// devolviendo un Comando o un Error en consecuencia
 fn procesar_length(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErrores> {
     if args.next().is_none() {
         Ok(Comando::Length)
@@ -71,6 +79,9 @@ fn procesar_length(mut args: impl Iterator<Item = String>) -> Result<Comando, Kv
         Err(KvErrores::ExtraArgument)
     }
 }
+
+///funcion que dado los args que corresponden a un comando snapshot, define si tiene la estructura correcta o no
+/// devolviendo un Comando o un Error en consecuencia
 fn procesar_snapshot(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErrores> {
     if args.next().is_none() {
         Ok(Comando::Snapshot)

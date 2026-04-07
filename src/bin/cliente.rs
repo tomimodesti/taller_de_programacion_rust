@@ -280,7 +280,6 @@ fn respuesta_normal() {
     }
 }
 
-
 #[test]
 fn conectar_servidor_ok() {
     use std::net::TcpListener;
