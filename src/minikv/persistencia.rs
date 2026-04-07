@@ -1,9 +1,10 @@
 //! archivo para metodos de persistencia
-use std::sync::{Arc,Mutex,RwLock};
-use std::fs::File;
+use crate::minikv::estructuras::MensajePersistencia;
 use std::collections::HashMap;
-use std::io::{Seek,SeekFrom,Write};
-
+use std::fs::File;
+use std::io::{Seek, SeekFrom, Write};
+use std::sync::mpsc::Receiver;
+use std::sync::{Arc, Mutex, RwLock};
 
 pub fn manejar_snapshot(
     data: Arc<RwLock<File>>,
@@ -64,34 +65,38 @@ pub fn manejar_snapshot(
     }
 }
 
-pub fn manejar_delete(log:Arc<Mutex<File>>,hashmap: Arc<RwLock<HashMap<String, String>>>,clave: String) -> () {
+pub fn manejar_delete(
+    log: Arc<Mutex<File>>,
+    hashmap: Arc<RwLock<HashMap<String, String>>>,
+    clave: String,
+) -> () {
     let log_line: String = format!("set \"{}\"\n", clave);
-                match log.lock() {
-                    Ok(mut log_file) => {
-                        //el lock al salir del scope se libera automaticamente
-                        match log_file.write_all(log_line.as_bytes()) {
-                            Ok(_) => {
-                                println!("Operacion delete persistida en el log");
-                            }
-                            Err(e) => {
-                                println!("ERROR: <Error al escribir en el log: {}>", e);
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        println!("ERROR: <El lock de log esta poisoned>");
-                        return;
-                    }
+    match log.lock() {
+        Ok(mut log_file) => {
+            //el lock al salir del scope se libera automaticamente
+            match log_file.write_all(log_line.as_bytes()) {
+                Ok(_) => {
+                    println!("Operacion delete persistida en el log");
                 }
-                match hashmap.write() {
-                    Ok(mut hashmap) => {
-                        hashmap.remove(&clave);
-                    }
-                    Err(_) => {
-                        println!("ERROR: <El lock de hashmap esta poisoned>");
-                        return;
-                    }
+                Err(e) => {
+                    println!("ERROR: <Error al escribir en el log: {}>", e);
                 }
+            }
+        }
+        Err(_) => {
+            println!("ERROR: <El lock de log esta poisoned>");
+            return;
+        }
+    }
+    match hashmap.write() {
+        Ok(mut hashmap) => {
+            hashmap.remove(&clave);
+        }
+        Err(_) => {
+            println!("ERROR: <El lock de hashmap esta poisoned>");
+            return;
+        }
+    }
 }
 
 pub fn manejar_set(
@@ -121,6 +126,28 @@ pub fn manejar_set(
         Err(_) => {
             println!("ERROR: <El lock de hashmap esta poisoned>");
             return;
+        }
+    }
+}
+
+pub fn manejar_persistencia(
+    persistencia_receiver: Receiver<MensajePersistencia>,
+    log: Arc<Mutex<File>>,
+    data: Arc<RwLock<File>>,
+    hashmap: Arc<RwLock<HashMap<String, String>>>,
+) {
+    //espera a que haya algo para escribir (set, delete o snapshot)
+    for mensaje in persistencia_receiver {
+        match mensaje {
+            MensajePersistencia::Snapshot => {
+                manejar_snapshot(data.clone(), log.clone(), hashmap.clone());
+            }
+            MensajePersistencia::Set { clave, valor } => {
+                manejar_set(log.clone(), hashmap.clone(), clave, valor);
+            }
+            MensajePersistencia::Delete { clave } => {
+                manejar_delete(log.clone(), hashmap.clone(), clave);
+            }
         }
     }
 }

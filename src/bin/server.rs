@@ -1,13 +1,14 @@
 use minikv::minikv::archivo::{abrir_archivos, cargar_hashmap};
-use minikv::minikv::network::{obtener_direccion,inicializar_tcplistener};
-use minikv::minikv::persistencia::{manejar_delete,manejar_set,manejar_snapshot};
+use minikv::minikv::errores::KvErrores;
 use minikv::minikv::estructuras::MensajePersistencia;
+use minikv::minikv::network::{inicializar_tcplistener, obtener_direccion};
 use minikv::minikv::parseo::{parseo_comando, procesar_linea};
+use minikv::minikv::persistencia::manejar_persistencia;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex, RwLock};
 use std::{net::TcpListener, sync::mpsc, thread};
 //main del server
@@ -74,28 +75,6 @@ fn inicializar_threads(
     esperar_solicitudes(listener, persistencia_sender, hashmap_clone);
 }
 
-fn manejar_persistencia(
-    persistencia_receiver: Receiver<MensajePersistencia>,
-    log: Arc<Mutex<File>>,
-    data: Arc<RwLock<File>>,
-    hashmap: Arc<RwLock<HashMap<String, String>>>,
-) {
-    //espera a que haya algo para escribir (set, delete o snapshot)
-    for mensaje in persistencia_receiver {
-        match mensaje {
-            MensajePersistencia::Snapshot => {
-                manejar_snapshot(data.clone(), log.clone(), hashmap.clone());
-            }
-            MensajePersistencia::Set { clave, valor } => {
-                manejar_set(log.clone(), hashmap.clone(), clave, valor);
-            }
-            MensajePersistencia::Delete { clave } => {
-                manejar_delete(log.clone(), hashmap.clone(), clave);
-            }
-        }
-    }
-}
-
 fn esperar_solicitudes(
     listener: TcpListener,
     persistencia_sender: Sender<MensajePersistencia>,
@@ -120,7 +99,6 @@ fn esperar_solicitudes(
     }
 }
 
-
 fn manejar_solicitud(
     mut stream: TcpStream,
     persistencia_sender: Sender<MensajePersistencia>,
@@ -140,40 +118,24 @@ fn manejar_solicitud(
         linea.clear();
         match reader.read_line(&mut linea) {
             Ok(0) => {
-                println!("Conexion cerrada por el cliente");
                 break; //muere el thread
             }
             Ok(_) => {
                 let linea = linea.trim();
-                let args = procesar_linea(linea);
-                let comando = match parseo_comando(args) {
-                    Ok(c) => c,
+                match procesar_comando(linea, hashmap_lock.clone(), persistencia_sender.clone()) {
+                    Ok(respuesta) => {
+                        if escribir_respuesta(&mut stream, respuesta).is_err() {
+                            break;
+                        } //espera siguiente solicitud
+                    }
                     Err(e) => {
-                        let respuesta = format!("ERROR_REC: <{}>", e.to_str());
+                        let respuesta = format!("ERROR: <{}>", e.to_str());
                         if escribir_respuesta(&mut stream, respuesta).is_err() {
                             break;
                         }
                         continue; //espera siguiente solicitud
                     }
                 };
-                //ejecutamos el comando y obtenemos la respuesta
-                let hashmap_lock_clone = Arc::clone(&hashmap_lock);
-                let persistencia_sender_clone = persistencia_sender.clone();
-                match comando.ejecutar(hashmap_lock_clone, persistencia_sender_clone) {
-                    Ok(respuesta) => {
-                        if escribir_respuesta(&mut stream, respuesta).is_err() {
-                            break;
-                        }
-                        //espera siguiente solicitud
-                    }
-                    Err(e) => {
-                        let respuesta = format!("ERROR: <{}>", e);
-                        if escribir_respuesta(&mut stream, respuesta).is_err() {
-                            break;
-                        }
-                        continue; //espera siguiente solicitud
-                    }
-                }
             }
             Err(_) => {
                 println!("ERROR: <Error de lectura del cliente>");
@@ -199,6 +161,18 @@ fn escribir_respuesta(stream: &mut TcpStream, respuesta: String) -> Result<(), S
     }
 }
 
+fn procesar_comando(
+    linea: &str,
+    hashmap: Arc<RwLock<HashMap<String, String>>>,
+    sender: Sender<MensajePersistencia>,
+) -> Result<String, KvErrores> {
+    let args = procesar_linea(linea);
+    let comando = parseo_comando(args)?;
+    match comando.ejecutar(hashmap, sender) {
+        Ok(res) => Ok(res),
+        Err(e) => Err(KvErrores::Error(e.to_string())),
+    }
+}
 
 #[test]
 fn listener_valido() {

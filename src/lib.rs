@@ -4,7 +4,7 @@ pub mod minikv {
     pub mod comunicacion;
     pub mod errores;
     pub mod estructuras;
-    pub mod parseo;
     pub mod network;
+    pub mod parseo;
     pub mod persistencia;
 }

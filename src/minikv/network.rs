@@ -1,5 +1,5 @@
-//! Archivo para funciones relacionadas al apartado conexion 
-use  crate::minikv::errores::KvErrores;
+//! Archivo para funciones relacionadas al apartado conexion
+use crate::minikv::errores::KvErrores;
 use std::net::TcpListener;
 
 pub fn obtener_direccion() -> Result<String, KvErrores> {
@@ -9,7 +9,6 @@ pub fn obtener_direccion() -> Result<String, KvErrores> {
         None => return Err(KvErrores::InvalidArgs),
     }
 }
-
 
 pub fn inicializar_tcplistener(direccion: String) -> Result<TcpListener, String> {
     let direccion = match direccion.parse::<std::net::SocketAddr>() {
@@ -26,4 +25,3 @@ pub fn inicializar_tcplistener(direccion: String) -> Result<TcpListener, String>
     };
     Ok(stream)
 }
-
