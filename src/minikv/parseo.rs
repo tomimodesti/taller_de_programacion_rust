@@ -17,7 +17,8 @@ pub fn parseo_comando(args: Vec<String>) -> Result<Comando, KvErrores> {
     let mut iter = args.into_iter();
 
     match iter.next() {
-        Some(nombre_comando) => {
+        Some(mut nombre_comando) => {
+            nombre_comando = nombre_comando.to_lowercase();
             let argumentos: Vec<String> = iter.collect();
             decidir_comando(&nombre_comando, argumentos)
         }
