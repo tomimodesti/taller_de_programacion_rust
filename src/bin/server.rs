@@ -315,3 +315,71 @@ fn escribir_respuesta(stream: &mut TcpStream, respuesta: String) -> Result<(), S
         }
     }
 }
+
+#[test]
+fn listener_valido() {
+    let res = inicializar_tcplistener("127.0.0.1:0");
+    assert!(res.is_ok());
+}
+
+#[test]
+fn listener_invalido() {
+    let res = inicializar_tcplistener("direccion_invalida");
+    assert!(res.is_err());
+}
+
+#[test]
+fn escribir_respuesta_ok() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+
+    let handle = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        escribir_respuesta(&mut stream, "OK".to_string()).unwrap();
+    });
+
+    let stream = TcpStream::connect(addr).unwrap();
+    let mut reader = BufReader::new(stream);
+
+    let mut linea = String::new();
+    reader.read_line(&mut linea).unwrap();
+
+    assert_eq!(linea.trim(), "OK");
+
+    handle.join().unwrap();
+}
+
+#[test]
+fn test_set_y_get() {
+    use std::sync::{Arc, RwLock};
+    use std::collections::HashMap;
+    use std::sync::mpsc;
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+
+    let hashmap = Arc::new(RwLock::new(HashMap::new()));
+    let (tx, _rx) = mpsc::channel();
+
+    // server thread
+    let hashmap_clone = Arc::clone(&hashmap);
+    let tx_clone = tx.clone();
+
+    thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        manejar_solicitud(stream, tx_clone, hashmap_clone);
+    });
+
+    // cliente
+    let mut stream = TcpStream::connect(addr).unwrap();
+
+    writeln!(stream, "set clave valor\n").unwrap();
+    stream.flush().unwrap();
+
+    let mut reader = BufReader::new(stream);
+    let mut response = String::new();
+
+    reader.read_line(&mut response).unwrap();
+    println!("{}",response);
+    assert!(response.contains("OK") || response.contains("clave"));
+}

@@ -95,7 +95,9 @@ fn obtener_timeout() -> Result<std::time::Duration, KvErrores> {
     }
 }
 
-//Funcion que dado un buffer decide que tipo de error es el dado
+///Funcion que dado un buffer decide que tipo de mensaje es el dado
+/// si es un error recuperable, no recuperable o un mensaje de respuesta satisfactorio
+/// (revisar en Comunicacion.rs)
 fn traducir_respuesta(buffer: &[u8]) -> ResultadoComunicacion {
     let respuesta = String::from_utf8_lossy(buffer).to_string();
 
@@ -110,6 +112,12 @@ fn traducir_respuesta(buffer: &[u8]) -> ResultadoComunicacion {
     }
 }
 
+///Funcion que genera un TcpStream y un buff para mandar solicitudes y leer respuestas
+/// del servidor donde estemos escuchando, eso lo marca la dirreccion pasada por STDIN
+/// al inicio del programa
+/// # Errores:
+/// * MISSING ARGUMENT: si no fue indicada la dirreccion para mandar solicitudes
+/// * Connection Closed: sino pudo conectarse al tcp o la conexion se cerro
 fn inicializar_cliente() -> Result<(TcpStream, BufReader<TcpStream>), KvErrores> {
     let args: Vec<String> = std::env::args().collect();
     let direccion = match args.get(1) {
@@ -117,7 +125,7 @@ fn inicializar_cliente() -> Result<(TcpStream, BufReader<TcpStream>), KvErrores>
         None => Err(KvErrores::MissingArgument),
     }?;
 
-    let timeout = match obtener_timeout(){
+    let timeout = match obtener_timeout() {
         Ok(s) => s,
         Err(_) => Duration::from_secs(10),
     };
@@ -130,6 +138,10 @@ fn inicializar_cliente() -> Result<(TcpStream, BufReader<TcpStream>), KvErrores>
     Ok((stream, reader))
 }
 
+///Loop del cliente para enviar solicitudes al servidor y recibir, traducir y mostrar la respuesta del mismo
+/// formas de salir del loop y terminar la conexion (EOF o un error de lectura de STDIN)
+/// en caso de que se reciba un respuesta satisfacoria del servidor la conexion sigue abierta
+/// esperando la siguiente query para el mismo, sin cerrar y abrir la conexion con el servidor
 fn loop_cliente(stream: &mut TcpStream, reader: &mut BufReader<TcpStream>) {
     let mut lector = io::stdin().lock();
     loop {
@@ -161,22 +173,24 @@ fn loop_cliente(stream: &mut TcpStream, reader: &mut BufReader<TcpStream>) {
     }
 }
 
-
+///Funcion que permite enviar un comando a traves del tcpstream al servidor que este escuchando en esa dirreccion
+/// el formato de envio es la linea indicada como argumento con un salto de linea, por lo que
+/// no es necesario agregarla por parte del usuario, se hace automaticamente
 fn enviar_comando(stream: &mut TcpStream, comando: &str) -> Result<(), KvErrores> {
     stream
         .write_all(format!("{}\n", comando).as_bytes())
         .map_err(|_| KvErrores::ConnectionClosed)
 }
 
+///Funcion que espera la respuesta del servidor, puede recibir multiples respuestas
+/// satisfactoria, un error no recuperable o terminar ya que se consumio el timeout de escucha
 fn recibir_respuesta(reader: &mut BufReader<TcpStream>) -> ResultadoComunicacion {
     let mut respuesta = String::new();
     match reader.read_line(&mut respuesta) {
         Ok(0) => ResultadoComunicacion::Cerrar("CONNECTION CLOSED".to_string()),
         Ok(_) => traducir_respuesta(respuesta.as_bytes()),
         Err(e) => match e.kind() {
-            io::ErrorKind::TimedOut => {
-                ResultadoComunicacion::Cerrar("TIMEOUT".to_string())
-            }
+            io::ErrorKind::TimedOut => ResultadoComunicacion::Cerrar("TIMEOUT".to_string()),
             io::ErrorKind::ConnectionReset => {
                 ResultadoComunicacion::Cerrar("CONEXION PERDIDA".to_string())
             }
@@ -185,7 +199,6 @@ fn recibir_respuesta(reader: &mut BufReader<TcpStream>) -> ResultadoComunicacion
     }
 }
 
-/*
 #[test]
 fn test_obtener_entrada_exitosa() {
     let mut input = "set clave valor\n".as_bytes(); // Simula STDIN
@@ -194,16 +207,91 @@ fn test_obtener_entrada_exitosa() {
 }
 
 #[test]
-fn test_obtener_entrada_vacia() {
-    let mut input = "\n".as_bytes();
-    let resultado = obtener_entrada(&mut input);
-    assert_eq!(resultado.unwrap_err(), "EMPTY");
-}
-    #[test]
 fn test_con_dyn() {
     let mut mock_input = "get clave\n".as_bytes();
     // Se pasa como &mut dyn BufRead
     let res = obtener_entrada(&mut mock_input);
     assert_eq!(res.unwrap(), "get clave");
 }
-*/
+
+#[test]
+fn entrada_valida() {
+    use std::io::Cursor;
+    let input = b"SET clave valor\n";
+    let mut cursor = Cursor::new(input);
+
+    let res = obtener_entrada(&mut cursor).unwrap();
+    assert_eq!(res, "SET clave valor");
+}
+
+#[test]
+fn entrada_vacia() {
+    use std::io::Cursor;
+    let input = b"\n";
+    let mut cursor = Cursor::new(input);
+
+    let res = obtener_entrada(&mut cursor);
+    assert!(matches!(res, Err(KvErrores::EMPTY)));
+}
+
+#[test]
+fn entrada_eof() {
+    use std::io::Cursor;
+    let input = b"";
+    let mut cursor = Cursor::new(input);
+
+    let res = obtener_entrada(&mut cursor);
+    assert!(matches!(res, Err(KvErrores::EOF)));
+}
+
+#[test]
+fn respuesta_error_recuperable() {
+    let input = b"ERR_REC: clave invalida";
+
+    match traducir_respuesta(input) {
+        ResultadoComunicacion::Continuar(msg) => {
+            assert_eq!(msg, "ERROR: <clave invalida>");
+        }
+        _ => panic!("Esperaba Continuar"),
+    }
+}
+
+#[test]
+fn respuesta_error_no_recuperable() {
+    let input = b"ERR_NO_REC: fatal";
+
+    match traducir_respuesta(input) {
+        ResultadoComunicacion::Cerrar(msg) => {
+            assert_eq!(msg, "ERROR: <fatal>");
+        }
+        _ => panic!("Esperaba Cerrar"),
+    }
+}
+
+#[test]
+fn respuesta_normal() {
+    let input = b"OK";
+
+    match traducir_respuesta(input) {
+        ResultadoComunicacion::Continuar(msg) => {
+            assert_eq!(msg, "OK");
+        }
+        _ => panic!("Esperaba Continuar"),
+    }
+}
+
+
+#[test]
+fn conectar_servidor_ok() {
+    use std::net::TcpListener;
+    use std::thread;
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+
+    thread::spawn(move || {
+        let _ = listener.accept();
+    });
+
+    let res = conectar_servidor(&addr.to_string(), std::time::Duration::from_secs(1));
+    assert!(res.is_ok());
+}
