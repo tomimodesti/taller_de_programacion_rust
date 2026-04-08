@@ -60,11 +60,13 @@ fn ejecutar_set(
     valor: String,
     sender: Sender<MensajePersistencia>,
 ) -> Result<String, String> {
-    let mensaje = MensajePersistencia::Set { clave, valor };
-    match sender.send(mensaje) {
-        Ok(_) => Ok("OK".to_string()),
-        Err(e) => Err(format!("Error al enviar el mensaje de set: {}", e)),
-    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mensaje = MensajePersistencia::Set { clave, valor, tx };
+    sender
+        .send(mensaje)
+        .map_err(|_| "\"No se pudo enviar el set\"")?;
+    rx.recv().map_err(|_| "\"No se pudo completar el set\"")?;
+    Ok("OK".to_string())
 }
 
 /// Funcion GET, dada una clave, busca en la base si hay un valor asignado a la misma
@@ -120,11 +122,13 @@ fn ejecutar_get(
 /// * OK --> si pudo eliminar la clave (si no existia no se hace nada pero se devuelve OK)
 /// * mensaje de error sino pudo terminar la operacion
 fn ejecutar_delete(clave: String, sender: Sender<MensajePersistencia>) -> Result<String, String> {
-    let mensaje = MensajePersistencia::Delete { clave };
-    match sender.send(mensaje) {
-        Ok(_) => Ok("OK".to_string()),
-        Err(e) => Err(format!("Error al enviar el mensaje de delete: {}", e)),
-    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mensaje = MensajePersistencia::Delete { clave, tx };
+    sender
+        .send(mensaje)
+        .map_err(|_| "\"No se pudo enviar el set\"")?;
+    rx.recv().map_err(|_| "\"No se pudo completar el set\"")?;
+    Ok("OK".to_string())
 }
 
 ///Funcion LENGTH, devuelve el largo de la base hasta el momento
@@ -149,8 +153,11 @@ fn ejecutar_snapshot(sender: Sender<MensajePersistencia>) -> Result<String, Stri
     //que haria el snapshot:
     //envia por el sender al thread de persistencia un mensaje "SNAPSHOT"
     //indicandole que debe realizar el snapshot
-    match sender.send(MensajePersistencia::Snapshot) {
-        Ok(_) => Ok("OK".to_string()),
-        Err(e) => Err(format!("Error al enviar el mensaje de snapshot: {}", e)),
-    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    sender
+        .send(MensajePersistencia::Snapshot { tx })
+        .map_err(|_| "\"no se pudo enviar el snapshot\"".to_string())?;
+    rx.recv()
+        .map_err(|_| "\"no se pudo completar el snapshot\"")?;
+    Ok("OK".to_string())
 }
