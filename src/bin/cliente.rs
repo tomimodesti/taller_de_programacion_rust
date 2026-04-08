@@ -18,7 +18,7 @@ pub fn main() {
     let (mut stream, mut reader) = match inicializar_cliente() {
         Ok(c) => c,
         Err(e) => {
-            println!("ERROR: <{}>", e.to_str());
+            println!("ERROR: \"{}\"", e.to_str());
             return;
         }
     };
@@ -103,10 +103,10 @@ fn traducir_respuesta(buffer: &[u8]) -> ResultadoComunicacion {
 
     if let Some(resultado) = respuesta.strip_prefix("ERR_REC:") {
         let limpio = resultado.trim();
-        ResultadoComunicacion::Continuar(format!("ERROR: <{}>", limpio))
+        ResultadoComunicacion::Continuar(format!("ERROR: \"{}\"", limpio))
     } else if let Some(resultado) = respuesta.strip_prefix("ERR_NO_REC:") {
         let limpio = resultado.trim();
-        ResultadoComunicacion::Cerrar(format!("ERROR: <{}>", limpio))
+        ResultadoComunicacion::Cerrar(format!("ERROR: \"{}\"", limpio))
     } else {
         ResultadoComunicacion::Continuar(respuesta.trim().to_string())
     }
@@ -152,21 +152,20 @@ fn loop_cliente(stream: &mut TcpStream, reader: &mut BufReader<TcpStream>) {
             Err(KvErrores::EOF) => break,
             Err(KvErrores::EMPTY) => continue,
             Err(e) => {
-                println!("ERROR: <{}>", e.to_str());
+                println!("ERROR: \"{}\"", e.to_str());
                 break;
             }
         };
-        println!("Comando a enviar: <{}>", comando);
         if let Err(e) = enviar_comando(stream, &comando) {
-            println!("ERROR: <{}>", e.to_str());
+            println!("ERROR: \"{}\"", e.to_str());
             continue;
         }
         match recibir_respuesta(reader) {
             ResultadoComunicacion::Continuar(r) => {
-                println!("Respuesta del servidor: <{}>", r.trim())
+                println!("{}", r.trim())
             }
             ResultadoComunicacion::Cerrar(e) => {
-                println!("ERROR <{}>", e.trim());
+                println!("ERROR \"{}\"", e.trim());
                 break;
             }
         }
@@ -250,7 +249,7 @@ fn respuesta_error_recuperable() {
 
     match traducir_respuesta(input) {
         ResultadoComunicacion::Continuar(msg) => {
-            assert_eq!(msg, "ERROR: <clave invalida>");
+            assert_eq!(msg, "ERROR: \"clave invalida\"");
         }
         _ => panic!("Esperaba Continuar"),
     }
@@ -262,7 +261,7 @@ fn respuesta_error_no_recuperable() {
 
     match traducir_respuesta(input) {
         ResultadoComunicacion::Cerrar(msg) => {
-            assert_eq!(msg, "ERROR: <fatal>");
+            assert_eq!(msg, "ERROR: \"fatal\"");
         }
         _ => panic!("Esperaba Cerrar"),
     }

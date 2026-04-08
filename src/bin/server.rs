@@ -118,6 +118,7 @@ fn manejar_solicitud(
         linea.clear();
         match reader.read_line(&mut linea) {
             Ok(0) => {
+                println!("ERROR: \"{}\"", KvErrores::ConnectionClosed.to_str());
                 break; //muere el thread
             }
             Ok(_) => {

@@ -1,8 +1,9 @@
 //! archivo para metodos de persistencia
+use crate::minikv::archivo::truncar_archivo;
 use crate::minikv::estructuras::MensajePersistencia;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Seek, SeekFrom, Write};
+use std::io::Write;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -10,7 +11,7 @@ pub fn manejar_snapshot(
     data: Arc<RwLock<File>>,
     log: Arc<Mutex<File>>,
     hashmap: Arc<RwLock<HashMap<String, String>>>,
-) -> () {
+) {
     let mut data_file = match data.write() {
         Ok(d) => d,
         Err(_) => {
@@ -18,16 +19,10 @@ pub fn manejar_snapshot(
             return;
         }
     };
-    // truncar data
-    if data_file.set_len(0).is_err() {
-        println!("ERROR: truncando data");
+    if let Err(e) = truncar_archivo(&mut data_file) {
+        println!("{}", e.to_str());
         return;
     }
-    if data_file.seek(SeekFrom::Start(0)).is_err() {
-        println!("ERROR: seek data");
-        return;
-    }
-
     let hashmap = match hashmap.read() {
         Ok(h) => h,
         Err(_) => {
@@ -35,7 +30,6 @@ pub fn manejar_snapshot(
             return;
         }
     };
-
     for (clave, valor) in &*hashmap {
         //escribimos sobre data
         let line = format!("\"{}\" \"{}\"\n", clave, valor.replace("\"", "\\\""));
@@ -47,7 +41,6 @@ pub fn manejar_snapshot(
         }
     }
     drop(data_file);
-    //trunco LOG
     let mut log_file = match log.lock() {
         Ok(l) => l,
         Err(_) => {
@@ -55,13 +48,8 @@ pub fn manejar_snapshot(
             return;
         }
     };
-    if log_file.set_len(0).is_err() {
-        println!("ERROR: truncando data");
-        return;
-    }
-    if log_file.seek(SeekFrom::Start(0)).is_err() {
-        println!("ERROR: seek data");
-        return;
+    if let Err(e) = truncar_archivo(&mut log_file) {
+        println!("{}", e.to_str());
     }
 }
 
@@ -69,7 +57,7 @@ pub fn manejar_delete(
     log: Arc<Mutex<File>>,
     hashmap: Arc<RwLock<HashMap<String, String>>>,
     clave: String,
-) -> () {
+) {
     let log_line: String = format!("set \"{}\"\n", clave);
     match log.lock() {
         Ok(mut log_file) => {
@@ -94,7 +82,6 @@ pub fn manejar_delete(
         }
         Err(_) => {
             println!("ERROR: <El lock de hashmap esta poisoned>");
-            return;
         }
     }
 }
@@ -104,7 +91,7 @@ pub fn manejar_set(
     hashmap: Arc<RwLock<HashMap<String, String>>>,
     clave: String,
     valor: String,
-) -> () {
+) {
     let log_line: String = format!("set \"{}\" \"{}\"\n", clave, valor.replace("\"", "\\\""));
     match log.lock() {
         Ok(mut log_file) => {
@@ -125,7 +112,6 @@ pub fn manejar_set(
         }
         Err(_) => {
             println!("ERROR: <El lock de hashmap esta poisoned>");
-            return;
         }
     }
 }

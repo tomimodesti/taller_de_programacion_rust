@@ -5,6 +5,8 @@ use crate::minikv::errores::KvErrores;
 use crate::minikv::estructuras::Storage;
 use crate::minikv::parseo::procesar_linea;
 use std::collections::HashMap;
+use std::io::Seek;
+use std::io::SeekFrom;
 use std::io::{BufRead, BufReader};
 use std::{
     fs::{File, OpenOptions},
@@ -180,4 +182,14 @@ pub fn abrir_archivos(data_path: &str, log_path: &str) -> Result<(File, File), K
     let data_file = abrir_archivo(data_path, false)?;
     let log_file = abrir_archivo(log_path, true)?;
     Ok((data_file, log_file))
+}
+
+pub fn truncar_archivo(file: &mut File) -> Result<(), KvErrores> {
+    file.set_len(0)
+        .map_err(|_| KvErrores::Error("ERROR: truncando archivo".to_string()))?;
+
+    file.seek(SeekFrom::Start(0))
+        .map_err(|_| KvErrores::Error("ERROR: seek archivo".to_string()))?;
+
+    Ok(())
 }

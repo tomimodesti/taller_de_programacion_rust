@@ -6,7 +6,7 @@ pub fn obtener_direccion() -> Result<String, KvErrores> {
     let args = std::env::args().collect::<Vec<String>>();
     match args.get(1) {
         Some(dir) => Ok(dir.clone()),
-        None => return Err(KvErrores::InvalidArgs),
+        None => Err(KvErrores::InvalidArgs),
     }
 }
 
