@@ -18,7 +18,7 @@ pub fn main() {
     let (mut stream, mut reader) = match inicializar_cliente() {
         Ok(c) => c,
         Err(e) => {
-            println!("ERROR: \"{}\"", e.to_str());
+            println!("ERROR \"{}\"", e.to_str());
             return;
         }
     };
@@ -94,13 +94,12 @@ fn obtener_timeout() -> Result<std::time::Duration, KvErrores> {
 /// (revisar en Comunicacion.rs)
 fn traducir_respuesta(buffer: &[u8]) -> ResultadoComunicacion {
     let respuesta = String::from_utf8_lossy(buffer).to_string();
-
     if let Some(resultado) = respuesta.strip_prefix("ERR_REC:") {
         let limpio = resultado.trim();
-        ResultadoComunicacion::Continuar(format!("ERROR: \"{}\"", limpio))
+        ResultadoComunicacion::Continuar(format!("ERROR \"{}\"", limpio))
     } else if let Some(resultado) = respuesta.strip_prefix("ERR_NO_REC:") {
         let limpio = resultado.trim();
-        ResultadoComunicacion::Cerrar(format!("ERROR: \"{}\"", limpio))
+        ResultadoComunicacion::Cerrar(format!("ERROR \"{}\"", limpio))
     } else {
         ResultadoComunicacion::Continuar(respuesta.trim().to_string())
     }
@@ -137,19 +136,18 @@ fn inicializar_cliente() -> Result<(TcpStream, BufReader<TcpStream>), KvErrores>
 fn loop_cliente(stream: &mut TcpStream, reader: &mut BufReader<TcpStream>) {
     let mut lector = io::stdin().lock();
     loop {
-        print!("> ");
         io::stdout().flush().ok();
         let comando = match obtener_entrada(&mut lector) {
             Ok(c) => c,
             Err(KvErrores::EOF) => break,
             Err(KvErrores::EMPTY) => continue,
             Err(e) => {
-                println!("ERROR: \"{}\"", e.to_str());
+                println!("ERROR \"{}\"", e.to_str());
                 break;
             }
         };
         if let Err(e) = enviar_comando(stream, &comando) {
-            println!("ERROR: \"{}\"", e.to_str());
+            println!("ERROR \"{}\"", e.to_str());
             continue;
         }
         match recibir_respuesta(reader) {
@@ -157,6 +155,7 @@ fn loop_cliente(stream: &mut TcpStream, reader: &mut BufReader<TcpStream>) {
                 println!("{}", r.trim())
             }
             ResultadoComunicacion::Cerrar(e) => {
+                println!("DEBUG RESPUESTA: {:?}", e);
                 println!("ERROR \"{}\"", e.trim());
                 break;
             }
@@ -181,7 +180,9 @@ fn recibir_respuesta(reader: &mut BufReader<TcpStream>) -> ResultadoComunicacion
         Ok(0) => ResultadoComunicacion::Cerrar("CONNECTION CLOSED".to_string()),
         Ok(_) => traducir_respuesta(respuesta.as_bytes()),
         Err(e) => match e.kind() {
-            io::ErrorKind::TimedOut => ResultadoComunicacion::Cerrar("TIMEOUT".to_string()),
+            io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock => {
+                ResultadoComunicacion::Cerrar("TIMEOUT".to_string())
+            }
             io::ErrorKind::ConnectionReset => {
                 ResultadoComunicacion::Cerrar("CONEXION PERDIDA".to_string())
             }
@@ -241,7 +242,7 @@ fn respuesta_error_recuperable() {
 
     match traducir_respuesta(input) {
         ResultadoComunicacion::Continuar(msg) => {
-            assert_eq!(msg, "ERROR: \"clave invalida\"");
+            assert_eq!(msg, "ERROR \"clave invalida\"");
         }
         _ => panic!("Esperaba Continuar"),
     }
@@ -253,7 +254,7 @@ fn respuesta_error_no_recuperable() {
 
     match traducir_respuesta(input) {
         ResultadoComunicacion::Cerrar(msg) => {
-            assert_eq!(msg, "ERROR: \"fatal\"");
+            assert_eq!(msg, "ERROR \"fatal\"");
         }
         _ => panic!("Esperaba Cerrar"),
     }

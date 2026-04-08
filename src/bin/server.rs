@@ -26,28 +26,28 @@ pub fn main() {
     let direccion = match obtener_direccion() {
         Ok(d) => d,
         Err(e) => {
-            println!("{}", e.to_str());
+            println!("ERROR \"{}\"", e.to_str());
             return;
         }
     };
     let listener: TcpListener = match inicializar_tcplistener(direccion) {
         Ok(l) => l,
         Err(e) => {
-            println!("ERROR: <{}>", e);
+            println!("ERROR \"{}\"", e);
             return;
         }
     };
     let (mut data_file, mut log_file) = match abrir_archivos(DATA_PATH, LOG_PATH) {
         Ok((a, b)) => (a, b),
         Err(e) => {
-            println!("ERROR: <{}>", e.to_str());
+            println!("ERROR \"{}\"", e.to_str());
             return;
         }
     };
     let hashmap: HashMap<String, String> = match cargar_hashmap(&mut data_file, &mut log_file) {
         Ok(h) => h,
         Err(e) => {
-            println!("ERROR: <{}>", e.to_str());
+            println!("ERROR \"{}\"", e.to_str());
             return;
         }
     };
@@ -93,7 +93,7 @@ fn esperar_solicitudes(
                 });
             }
             Err(_) => {
-                println!("ERROR: <No se pudo aceptar conexion entrante>")
+                println!("ERROR \"No se pudo aceptar conexion entrante\"")
             }
         }
     }
@@ -106,7 +106,7 @@ fn manejar_solicitud(
 ) {
     //manejamos las solicitudes del cliente
     let Ok(reader_stream) = stream.try_clone() else {
-        println!("ERROR: <No pudo leer la solicitud del cliente>");
+        println!("ERROR: \"No pudo leer la solicitud del cliente\"");
         return;
     };
     let mut reader = BufReader::new(reader_stream);
@@ -115,7 +115,7 @@ fn manejar_solicitud(
         linea.clear();
         match reader.read_line(&mut linea) {
             Ok(0) => {
-                println!("ERROR: \"{}\"", KvErrores::ConnectionClosed.to_str());
+                println!("ERROR \"{}\"", KvErrores::ConnectionClosed.to_str());
                 break; //muere el thread
             }
             Ok(_) => {
@@ -127,7 +127,7 @@ fn manejar_solicitud(
                         } //espera siguiente solicitud
                     }
                     Err(e) => {
-                        let respuesta = format!("ERROR: <{}>", e.to_str());
+                        let respuesta = format!("ERROR \"{}\"", e.to_str());
                         if escribir_respuesta(&mut stream, respuesta).is_err() {
                             break;
                         }
@@ -136,7 +136,7 @@ fn manejar_solicitud(
                 };
             }
             Err(_) => {
-                println!("ERROR: <Error de lectura del cliente>");
+                println!("ERROR \"Error de lectura del cliente\"");
                 break; //muere el thread
             }
         }
