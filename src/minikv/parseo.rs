@@ -1,7 +1,7 @@
 //! Modulo para parseo de comandos e inputs de usuario
 
+use crate::minikv::estructuras::LogCommand;
 use crate::minikv::{comandos::Comando, errores::KvErrores};
-
 /// Funcion que dado el input del usuario,
 ///  lo parsea y decide que comando se ejecutara
 /// # Argumentos
@@ -60,6 +60,20 @@ fn procesar_set(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErr
     }
 }
 
+///Funcion para parsear una linea del archivo LOG, devolviendo si es una linea valida o un error
+/// el LOG debe tener todas sus lineas validas, si se encuentra alguna que no siga el formato
+/// correspondiente, devuelve el error de INVALID LOG FILE
+pub fn parsear_log(partes: &[String]) -> Result<LogCommand, KvErrores> {
+    match partes {
+        [op, k, v] if op == "set" => Ok(LogCommand::SET {
+            clave: k.clone(),
+            valor: v.clone(),
+        }),
+        [op, k] if op == "set" => Ok(LogCommand::DELETE { clave: k.clone() }),
+        _ => Err(KvErrores::InvalidLogFile),
+    }
+}
+
 ///funcion que dado los args que corresponden a un comando get, define si tiene la estructura correcta o no
 /// devolviendo un Comando o un Error en consecuencia
 fn procesar_get(mut args: impl Iterator<Item = String>) -> Result<Comando, KvErrores> {
@@ -90,7 +104,7 @@ fn procesar_snapshot(mut args: impl Iterator<Item = String>) -> Result<Comando, 
     }
 }
 
-///Funcion que dado una linea la procesa devolviendo un vector con sus partes
+///Funcion que dado una linea la procesa devolviendo un vector con sus partes, permitiendo comillas internas
 pub fn procesar_linea(linea: &str) -> Vec<String> {
     let mut partes = Vec::new();
     let mut actual = String::new();

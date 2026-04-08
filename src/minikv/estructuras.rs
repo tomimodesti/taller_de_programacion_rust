@@ -21,3 +21,8 @@ pub enum MensajePersistencia {
         tx: Sender<()>,
     },
 }
+
+pub enum LogCommand {
+    SET { clave: String, valor: String },
+    DELETE { clave: String },
+}

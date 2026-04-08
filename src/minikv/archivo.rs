@@ -2,8 +2,9 @@
 //! apertura, lectura y escritura de archivos
 
 use crate::minikv::errores::KvErrores;
+use crate::minikv::estructuras::LogCommand;
 use crate::minikv::estructuras::Storage;
-use crate::minikv::parseo::procesar_linea;
+use crate::minikv::parseo::{parsear_log, procesar_linea};
 use std::collections::HashMap;
 use std::io::Seek;
 use std::io::SeekFrom;
@@ -148,14 +149,14 @@ fn cargar_hashmap_log(
             continue;
         }
         let partes: Vec<String> = procesar_linea(linea);
-        match partes.as_slice() {
-            [op, k, v] if op == "set" => {
-                hashmap.insert(k.to_string(), v.to_string());
+        let comando = parsear_log(&partes)?;
+        match comando {
+            LogCommand::SET { clave, valor } => {
+                hashmap.insert(clave, valor);
             }
-            [op, k] if op == "set" => {
-                hashmap.remove(k);
+            LogCommand::DELETE { clave } => {
+                hashmap.remove(&clave);
             }
-            _ => return Err(KvErrores::InvalidLogFile),
         }
     }
     Ok(hashmap)

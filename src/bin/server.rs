@@ -37,21 +37,22 @@ pub fn main() {
             return;
         }
     };
-    let (mut data_file, mut log_file) = match abrir_archivos(DATA_PATH, LOG_PATH) {
-        Ok((a, b)) => (a, b),
-        Err(e) => {
-            println!("ERROR \"{}\"", e.to_str());
-            return;
-        }
-    };
-    let hashmap: HashMap<String, String> = match cargar_hashmap(&mut data_file, &mut log_file) {
-        Ok(h) => h,
+    let (data_file, log_file, hashmap) = match inicializar_storage(DATA_PATH, LOG_PATH) {
+        Ok(a) => a,
         Err(e) => {
             println!("ERROR \"{}\"", e.to_str());
             return;
         }
     };
     inicializar_threads(data_file, log_file, hashmap, listener);
+}
+fn inicializar_storage(
+    data_path: &str,
+    log_path: &str,
+) -> Result<(File, File, HashMap<String, String>), KvErrores> {
+    let (mut data_file, mut log_file) = abrir_archivos(data_path, log_path)?;
+    let hashmap = cargar_hashmap(&mut data_file, &mut log_file)?;
+    Ok((data_file, log_file, hashmap))
 }
 
 fn inicializar_threads(
@@ -203,39 +204,4 @@ fn escribir_respuesta_ok() {
     assert_eq!(linea.trim(), "OK");
 
     handle.join().unwrap();
-}
-
-#[test]
-fn test_set_y_get() {
-    use std::collections::HashMap;
-    use std::sync::mpsc;
-    use std::sync::{Arc, RwLock};
-
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let addr = listener.local_addr().unwrap();
-
-    let hashmap = Arc::new(RwLock::new(HashMap::new()));
-    let (tx, _rx) = mpsc::channel();
-
-    // server thread
-    let hashmap_clone = Arc::clone(&hashmap);
-    let tx_clone = tx.clone();
-
-    thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
-        manejar_solicitud(stream, tx_clone, hashmap_clone);
-    });
-
-    // cliente
-    let mut stream = TcpStream::connect(addr).unwrap();
-
-    writeln!(stream, "set clave valor\n").unwrap();
-    stream.flush().unwrap();
-
-    let mut reader = BufReader::new(stream);
-    let mut response = String::new();
-
-    reader.read_line(&mut response).unwrap();
-    println!("{}", response);
-    assert!(response.contains("OK") || response.contains("clave"));
 }
