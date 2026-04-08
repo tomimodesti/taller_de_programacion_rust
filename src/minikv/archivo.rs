@@ -105,7 +105,9 @@ fn cargar_hashmap_data(
 ) -> Result<HashMap<String, String>, KvErrores> {
     let reader = BufReader::new(data_path);
     for line in reader.lines() {
-        let Ok(linea) = line else { return Err(KvErrores::InvalidDataFile) };
+        let Ok(linea) = line else {
+            return Err(KvErrores::InvalidDataFile);
+        };
 
         let linea = linea.trim();
         if linea.is_empty() {
@@ -138,7 +140,9 @@ fn cargar_hashmap_log(
 ) -> Result<HashMap<String, String>, KvErrores> {
     let reader = BufReader::new(log_path);
     for line in reader.lines() {
-        let Ok(linea) = line else { return Err(KvErrores::InvalidLogFile) };
+        let Ok(linea) = line else {
+            return Err(KvErrores::InvalidLogFile);
+        };
         let linea = linea.trim();
         if linea.is_empty() {
             continue;

@@ -105,12 +105,9 @@ fn manejar_solicitud(
     hashmap_lock: Arc<RwLock<HashMap<String, String>>>,
 ) {
     //manejamos las solicitudes del cliente
-    let reader_stream = match stream.try_clone() {
-        Ok(s) => s,
-        Err(_) => {
-            println!("ERROR: <No pudo leer la solicitud del cliente>");
-            return;
-        }
+    let Ok(reader_stream) = stream.try_clone() else {
+        println!("ERROR: <No pudo leer la solicitud del cliente>");
+        return;
     };
     let mut reader = BufReader::new(reader_stream);
     let mut linea = String::new();

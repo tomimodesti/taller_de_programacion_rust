@@ -63,19 +63,13 @@ fn conectar_servidor(
 ) -> Result<TcpStream, KvErrores> {
     // conectarse al server
     //1) intentar conexion por TCP con la direccion dada
-    let socket_addrs = match direccion.to_socket_addrs() {
-        Ok(a) => a,
-        Err(_) => {
-            return Err(KvErrores::InvalidPuerto);
-        }
+    let Ok(socket_addrs) = direccion.to_socket_addrs() else {
+        return Err(KvErrores::InvalidPuerto);
     };
     //2) conectamos el server y seteamos el timeout de lectura
     let lista_direcciones: Vec<SocketAddr> = socket_addrs.collect();
-    let stream = match TcpStream::connect(&lista_direcciones[..]) {
-        Ok(s) => s,
-        Err(_) => {
-            return Err(KvErrores::ClientSocketBinding);
-        }
+    let Ok(stream) = TcpStream::connect(&lista_direcciones[..]) else {
+        return Err(KvErrores::ClientSocketBinding);
     };
     if stream.set_read_timeout(Some(timeout)).is_err() {
         return Err(KvErrores::Error("NO SE PUDO SETEAR TIMEOUT".to_string()));
@@ -120,11 +114,9 @@ fn traducir_respuesta(buffer: &[u8]) -> ResultadoComunicacion {
 /// * Connection Closed: sino pudo conectarse al tcp o la conexion se cerro
 fn inicializar_cliente() -> Result<(TcpStream, BufReader<TcpStream>), KvErrores> {
     let args: Vec<String> = std::env::args().collect();
-    let direccion = match args.get(1) {
-        Some(v) => Ok(v),
-        None => Err(KvErrores::MissingArgument),
-    }?;
-
+    let Some(direccion) = args.get(1) else {
+        return Err(KvErrores::MissingArgument);
+    };
     let timeout = match obtener_timeout() {
         Ok(s) => s,
         Err(_) => Duration::from_secs(10),
