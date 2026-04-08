@@ -11,17 +11,12 @@ pub fn obtener_direccion() -> Result<String, KvErrores> {
 }
 
 pub fn inicializar_tcplistener(direccion: String) -> Result<TcpListener, String> {
-    let direccion = match direccion.parse::<std::net::SocketAddr>() {
-        Ok(d) => d,
-        Err(_) => {
-            return Err("PUERTO INVALIDO".into());
-        }
+    let Ok(direccion) = direccion.parse::<std::net::SocketAddr>() else {
+        return Err("PUERTO INVALIDO".into());
     };
-    let stream = match TcpListener::bind(direccion) {
-        Ok(s) => s,
-        Err(_) => {
-            return Err("SERVIDOR SOCKET BINDING".into());
-        }
+
+    let Ok(stream) = TcpListener::bind(direccion) else {
+        return Err("SERVIDOR SOCKET BINDING".into());
     };
     Ok(stream)
 }

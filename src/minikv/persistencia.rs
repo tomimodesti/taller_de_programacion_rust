@@ -12,23 +12,17 @@ pub fn manejar_snapshot(
     log: Arc<Mutex<File>>,
     hashmap: Arc<RwLock<HashMap<String, String>>>,
 ) {
-    let mut data_file = match data.write() {
-        Ok(d) => d,
-        Err(_) => {
-            println!("ERROR: Lock de data en estado poisoned");
-            return;
-        }
+    let Ok(mut data_file) = data.write() else {
+        println!("ERROR: lock de data en estado poisoned");
+        return;
     };
     if let Err(e) = truncar_archivo(&mut data_file) {
         println!("{}", e.to_str());
         return;
     }
-    let hashmap = match hashmap.read() {
-        Ok(h) => h,
-        Err(_) => {
-            println!("Lock de hashmap en estado poissoned");
-            return;
-        }
+    let Ok(hashmap) = hashmap.read() else {
+        println!("Lock de hashmap en estado poissoned");
+        return;
     };
     for (clave, valor) in &*hashmap {
         //escribimos sobre data
@@ -41,12 +35,9 @@ pub fn manejar_snapshot(
         }
     }
     drop(data_file);
-    let mut log_file = match log.lock() {
-        Ok(l) => l,
-        Err(_) => {
-            println!("LOG en estado poissoned");
-            return;
-        }
+    let Ok(mut log_file) = log.lock() else {
+        println!("LOG en estado poissoned");
+        return;
     };
     if let Err(e) = truncar_archivo(&mut log_file) {
         println!("{}", e.to_str());
